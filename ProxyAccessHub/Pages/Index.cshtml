@@ -1,0 +1,19 @@
+@page
+@model ProxyAccessHub.Pages.IndexModel
+@{
+    ViewData["Title"] = "Пополнение баланса";
+}
+
+<main class="payment-page">
+    <section class="payment-widget-shell" aria-label="Виджет пополнения баланса">
+        <iframe
+            class="payment-widget-frame"
+            src="@Model.WidgetUrl"
+            width="330"
+            height="50"
+            frameborder="0"
+            allowtransparency="true"
+            scrolling="no">
+        </iframe>
+    </section>
+</main>

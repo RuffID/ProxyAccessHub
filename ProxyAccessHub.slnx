@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ProxyAccessHub/ProxyAccessHub.csproj" />
+  <Project Path="ProxyAccessHub.Domain/ProxyAccessHub.Domain.csproj" />
+  <Project Path="ProxyAccessHub.Application/ProxyAccessHub.Application.csproj" />
+  <Project Path="ProxyAccessHub.Infrastructure/ProxyAccessHub.Infrastructure.csproj" />
+</Solution>
