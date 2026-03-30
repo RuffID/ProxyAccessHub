@@ -9,6 +9,7 @@
 *.user
 *.userosscache
 *.sln.docstates
+ProxyAccessHub/Config/config.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
