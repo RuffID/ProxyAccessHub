@@ -16,6 +16,8 @@ public class TelemtUsersSyncBackgroundService(
     IOptions<TelemtOptions> telemtOptions,
     ILogger<TelemtUsersSyncBackgroundService> logger) : BackgroundService
 {
+    private readonly TimeSpan syncInterval = TimeSpan.FromMinutes(telemtOptions.Value.SyncIntervalMinutes);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!telemtOptions.Value.SyncEnabled)
@@ -30,13 +32,13 @@ public class TelemtUsersSyncBackgroundService(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            using IServiceScope scope = serviceScopeFactory.CreateScope();
-            ITelemtUsersSyncService syncService = scope.ServiceProvider.GetRequiredService<ITelemtUsersSyncService>();
-            ITelemtSyncStateStore syncStateStore = scope.ServiceProvider.GetRequiredService<ITelemtSyncStateStore>();
-
             try
             {
+                using IServiceScope scope = serviceScopeFactory.CreateScope();
+                ITelemtUsersSyncService syncService = scope.ServiceProvider.GetRequiredService<ITelemtUsersSyncService>();
+                ITelemtSyncStateStore syncStateStore = scope.ServiceProvider.GetRequiredService<ITelemtSyncStateStore>();
                 TelemtUsersSyncResult result = await syncService.SyncAsync(stoppingToken);
+
                 syncStateStore.SetSuccess(result);
                 logger.LogInformation(
                     "Фоновая синхронизация telemt завершена. Сервер: {ServerCode}. Ревизия: {Revision}. Обработано: {ProcessedUsers}. Создано: {CreatedUsers}. Обновлено: {UpdatedUsers}. Расхождений: {MarkedForManualHandlingUsers}.",
@@ -47,13 +49,19 @@ public class TelemtUsersSyncBackgroundService(
                     result.UpdatedUsers,
                     result.MarkedForManualHandlingUsers);
             }
-            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            catch (Exception ex) when (ex is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
             {
+                using IServiceScope scope = serviceScopeFactory.CreateScope();
+                ITelemtSyncStateStore syncStateStore = scope.ServiceProvider.GetRequiredService<ITelemtSyncStateStore>();
+
                 syncStateStore.SetFailure(ex.Message, DateTimeOffset.UtcNow);
-                logger.LogError(ex, "Ошибка фоновой синхронизации пользователей из telemt.");
+                logger.LogError(
+                    ex,
+                    "Фоновая синхронизация telemt завершилась ошибкой. Следующая попытка будет через {SyncIntervalMinutes} мин.",
+                    telemtOptions.Value.SyncIntervalMinutes);
             }
 
-            await Task.Delay(TimeSpan.FromMinutes(telemtOptions.Value.SyncIntervalMinutes), stoppingToken);
+            await Task.Delay(syncInterval, stoppingToken);
         }
     }
 }

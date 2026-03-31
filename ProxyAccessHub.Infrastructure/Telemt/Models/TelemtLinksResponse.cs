@@ -8,20 +8,20 @@ namespace ProxyAccessHub.Infrastructure.Telemt.Models;
 internal sealed class TelemtLinksResponse
 {
     /// <summary>
-    /// Классическая ссылка.
+    /// Классические ссылки.
     /// </summary>
     [JsonPropertyName("classic")]
-    public string? Classic { get; set; }
+    public string[] Classic { get; set; } = [];
 
     /// <summary>
-    /// Secure-ссылка.
+    /// Secure-ссылки.
     /// </summary>
     [JsonPropertyName("secure")]
-    public string? Secure { get; set; }
+    public string[] Secure { get; set; } = [];
 
     /// <summary>
-    /// TLS-ссылка.
+    /// TLS-ссылки.
     /// </summary>
     [JsonPropertyName("tls")]
-    public string? Tls { get; set; }
+    public string[] Tls { get; set; } = [];
 }

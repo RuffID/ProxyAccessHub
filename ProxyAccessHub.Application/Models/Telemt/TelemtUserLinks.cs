@@ -3,10 +3,10 @@ namespace ProxyAccessHub.Application.Models.Telemt;
 /// <summary>
 /// Набор proxy-ссылок пользователя, возвращённый telemt.
 /// </summary>
-/// <param name="Classic">Классическая ссылка.</param>
-/// <param name="Secure">Secure-ссылка.</param>
-/// <param name="Tls">TLS-ссылка.</param>
+/// <param name="Classic">Классические ссылки.</param>
+/// <param name="Secure">Secure-ссылки.</param>
+/// <param name="Tls">TLS-ссылки.</param>
 public sealed record TelemtUserLinks(
-    string? Classic,
-    string? Secure,
-    string? Tls);
+    IReadOnlyList<string> Classic,
+    IReadOnlyList<string> Secure,
+    IReadOnlyList<string> Tls);

@@ -68,19 +68,22 @@ internal static class PendingConnectionUserConventions
     /// <returns>Основная proxy-ссылка пользователя.</returns>
     public static string SelectPrimaryProxyLink(TelemtUserLinks links)
     {
-        if (!string.IsNullOrWhiteSpace(links.Secure))
+        string? secureLink = SelectFirstLink(links.Secure);
+        if (secureLink is not null)
         {
-            return links.Secure.Trim();
+            return secureLink;
         }
 
-        if (!string.IsNullOrWhiteSpace(links.Tls))
+        string? tlsLink = SelectFirstLink(links.Tls);
+        if (tlsLink is not null)
         {
-            return links.Tls.Trim();
+            return tlsLink;
         }
 
-        if (!string.IsNullOrWhiteSpace(links.Classic))
+        string? classicLink = SelectFirstLink(links.Classic);
+        if (classicLink is not null)
         {
-            return links.Classic.Trim();
+            return classicLink;
         }
 
         throw new InvalidOperationException("Telemt не вернул ни одной proxy-ссылки для пользователя.");
@@ -113,5 +116,23 @@ internal static class PendingConnectionUserConventions
         }
 
         throw new InvalidOperationException("В proxy-ссылке отсутствует параметр secret.");
+    }
+
+    /// <summary>
+    /// Возвращает первую непустую ссылку из набора.
+    /// </summary>
+    /// <param name="links">Проверяемый набор ссылок.</param>
+    /// <returns>Первая непустая ссылка или <see langword="null" />.</returns>
+    private static string? SelectFirstLink(IReadOnlyList<string> links)
+    {
+        foreach (string link in links)
+        {
+            if (!string.IsNullOrWhiteSpace(link))
+            {
+                return link.Trim();
+            }
+        }
+
+        return null;
     }
 }

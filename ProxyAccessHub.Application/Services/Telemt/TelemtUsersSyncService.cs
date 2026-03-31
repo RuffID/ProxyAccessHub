@@ -13,37 +13,14 @@ namespace ProxyAccessHub.Application.Services.Telemt;
 /// <summary>
 /// Синхронизирует пользователей telemt в локальное хранилище приложения.
 /// </summary>
-public class TelemtUsersSyncService : ITelemtUsersSyncService
+public class TelemtUsersSyncService(
+    ITelemtApiClient telemtApiClient,
+    IProxyAccessHubUnitOfWork unitOfWork,
+    ITariffCatalog tariffCatalog,
+    IOptions<TelemtOptions> telemtOptions,
+    IOptions<ProxyServerPoolOptions> proxyServerPoolOptions) : ITelemtUsersSyncService
 {
     private const string MISSING_IN_TELEMT_REASON = "Пользователь отсутствует в telemt при фоновой синхронизации.";
-
-    private readonly ITelemtApiClient telemtApiClient;
-    private readonly IProxyAccessHubUnitOfWork unitOfWork;
-    private readonly ITariffCatalog tariffCatalog;
-    private readonly TelemtOptions telemtOptions;
-    private readonly ProxyServerPoolOptions proxyServerPoolOptions;
-
-    /// <summary>
-    /// Инициализирует сервис синхронизации пользователей telemt.
-    /// </summary>
-    /// <param name="telemtApiClient">Клиент telemt API.</param>
-    /// <param name="unitOfWork">UnitOfWork локального хранилища.</param>
-    /// <param name="tariffCatalog">Каталог тарифов приложения.</param>
-    /// <param name="telemtOptions">Настройки подключения к telemt.</param>
-    /// <param name="proxyServerPoolOptions">Настройки лимитов proxy-серверов.</param>
-    public TelemtUsersSyncService(
-        ITelemtApiClient telemtApiClient,
-        IProxyAccessHubUnitOfWork unitOfWork,
-        ITariffCatalog tariffCatalog,
-        IOptions<TelemtOptions> telemtOptions,
-        IOptions<ProxyServerPoolOptions> proxyServerPoolOptions)
-    {
-        this.telemtApiClient = telemtApiClient;
-        this.unitOfWork = unitOfWork;
-        this.tariffCatalog = tariffCatalog;
-        this.telemtOptions = telemtOptions.Value;
-        this.proxyServerPoolOptions = proxyServerPoolOptions.Value;
-    }
 
     /// <inheritdoc />
     public async Task<TelemtUsersSyncResult> SyncAsync(CancellationToken cancellationToken = default)
@@ -117,16 +94,16 @@ public class TelemtUsersSyncService : ITelemtUsersSyncService
     {
         IReadOnlyList<ProxyServer> servers = await unitOfWork.Servers.GetAllAsync(cancellationToken);
         ProxyServer? existingServer = servers.FirstOrDefault(server =>
-            string.Equals(server.Code, telemtOptions.ServerCode, StringComparison.OrdinalIgnoreCase));
+            string.Equals(server.Code, telemtOptions.Value.ServerCode, StringComparison.OrdinalIgnoreCase));
 
         if (existingServer is not null)
         {
             Uri existingApiUri = CreateApiUri();
             ProxyServer synchronizedServer = existingServer with
             {
-                Name = telemtOptions.ServerName.Trim(),
+                Name = telemtOptions.Value.ServerName.Trim(),
                 Host = existingApiUri.Host,
-                MaxUsers = proxyServerPoolOptions.DefaultMaxUsersPerServer
+                MaxUsers = proxyServerPoolOptions.Value.DefaultMaxUsersPerServer
             };
 
             await unitOfWork.Servers.UpdateAsync(synchronizedServer, cancellationToken);
@@ -136,10 +113,10 @@ public class TelemtUsersSyncService : ITelemtUsersSyncService
         Uri apiUri = CreateApiUri();
         ProxyServer server = new(
             Guid.NewGuid(),
-            telemtOptions.ServerCode.Trim(),
-            telemtOptions.ServerName.Trim(),
+            telemtOptions.Value.ServerCode.Trim(),
+            telemtOptions.Value.ServerName.Trim(),
             apiUri.Host,
-            proxyServerPoolOptions.DefaultMaxUsersPerServer);
+            proxyServerPoolOptions.Value.DefaultMaxUsersPerServer);
 
         await unitOfWork.Servers.AddAsync(server, cancellationToken);
         return server;
@@ -200,7 +177,7 @@ public class TelemtUsersSyncService : ITelemtUsersSyncService
 
     private Uri CreateApiUri()
     {
-        if (!Uri.TryCreate(telemtOptions.ApiBaseUrl, UriKind.Absolute, out Uri? apiUri))
+        if (!Uri.TryCreate(telemtOptions.Value.ApiBaseUrl, UriKind.Absolute, out Uri? apiUri))
         {
             throw new InvalidOperationException("Адрес telemt API должен быть задан абсолютным URL.");
         }
@@ -212,17 +189,17 @@ public class TelemtUsersSyncService : ITelemtUsersSyncService
     {
         CreateApiUri();
 
-        if (string.IsNullOrWhiteSpace(telemtOptions.ServerCode))
+        if (string.IsNullOrWhiteSpace(telemtOptions.Value.ServerCode))
         {
             throw new InvalidOperationException("Не задан код сервера telemt.");
         }
 
-        if (string.IsNullOrWhiteSpace(telemtOptions.ServerName))
+        if (string.IsNullOrWhiteSpace(telemtOptions.Value.ServerName))
         {
             throw new InvalidOperationException("Не задано название сервера telemt.");
         }
 
-        if (proxyServerPoolOptions.DefaultMaxUsersPerServer <= 0)
+        if (proxyServerPoolOptions.Value.DefaultMaxUsersPerServer <= 0)
         {
             throw new InvalidOperationException("Лимит пользователей на сервере должен быть больше нуля.");
         }
