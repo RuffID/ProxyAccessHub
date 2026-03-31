@@ -4,6 +4,11 @@
     ViewData["Title"] = "Продление подписки";
 }
 
+@if (Model.LookupResult is not null)
+{
+    ViewData["UserBadgeText"] = Model.LookupResult.TelemtUserId;
+}
+
 <main class="screen-page">
     <section class="screen-shell" aria-label="Экран продления подписки">
         <div class="screen-copy">

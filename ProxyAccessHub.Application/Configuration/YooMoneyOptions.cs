@@ -11,11 +11,6 @@ public sealed class YooMoneyOptions
     public const string SECTION_NAME = "YooMoney";
 
     /// <summary>
-    /// Идентификатор кнопки сбора средств.
-    /// </summary>
-    public string BillNumber { get; init; } = string.Empty;
-
-    /// <summary>
     /// Номер кошелька получателя.
     /// </summary>
     public string Receiver { get; init; } = string.Empty;

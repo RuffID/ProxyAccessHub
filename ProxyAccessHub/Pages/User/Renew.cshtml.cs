@@ -89,7 +89,7 @@ public sealed class RenewModel : PageModel
         {
             LookupResult = await userRenewalLookupService.GetByUserIdAsync(userId, HttpContext.RequestAborted);
             SearchValue = LookupResult.TelemtUserId;
-            PaymentForm = await userPaymentRequestService.CreateAsync(userId, HttpContext.RequestAborted);
+            PaymentForm = await userPaymentRequestService.GetOrCreateAsync(userId, HttpContext.RequestAborted);
         }
         catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
         {

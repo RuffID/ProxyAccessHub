@@ -1,3 +1,12 @@
+@using ProxyAccessHub.Core.Authentication
+@{
+    string? userBadgeText = ViewData["UserBadgeText"] as string;
+    if (string.IsNullOrWhiteSpace(userBadgeText)
+        && User.HasClaim(UserAccessAuthenticationDefaults.ACCESS_CLAIM_TYPE, UserAccessAuthenticationDefaults.ACCESS_CLAIM_VALUE))
+    {
+        userBadgeText = "Вход выполнен";
+    }
+}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -17,6 +26,10 @@
                 <a class="app-nav-link" asp-page="/Admin/Users">Пользователи</a>
                 <a class="app-nav-link" asp-page="/User/NewConnection">Новое подключение</a>
             </nav>
+            @if (!string.IsNullOrWhiteSpace(userBadgeText))
+            {
+                <button class="app-user-badge" type="button">@userBadgeText</button>
+            }
         </div>
     </header>
 

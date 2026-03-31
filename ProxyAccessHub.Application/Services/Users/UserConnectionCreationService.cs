@@ -107,7 +107,7 @@ public sealed class UserConnectionCreationService : IUserConnectionCreationServi
         await unitOfWork.Users.AddAsync(pendingUser, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        YooMoneyPaymentFormModel paymentForm = await userPaymentRequestService.CreateAsync(pendingUser.Id, cancellationToken);
+        YooMoneyPaymentFormModel paymentForm = await userPaymentRequestService.GetOrCreateAsync(pendingUser.Id, cancellationToken);
         return paymentForm with
         {
             SuccessUrl = BuildPaymentSuccessUrl(paymentForm.PaymentRequestId)

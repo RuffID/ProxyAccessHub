@@ -8,10 +8,10 @@ namespace ProxyAccessHub.Application.Abstractions.Payments;
 public interface IUserPaymentRequestService
 {
     /// <summary>
-    /// Создаёт заявку на оплату продления для пользователя.
+    /// Ищет существующую/незавершённую или создаёт заявку на оплату продления для пользователя.
     /// </summary>
     /// <param name="userId">Идентификатор пользователя.</param>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Данные формы оплаты ЮMoney.</returns>
-    Task<YooMoneyPaymentFormModel> CreateAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<YooMoneyPaymentFormModel> GetOrCreateAsync(Guid userId, CancellationToken cancellationToken = default);
 }

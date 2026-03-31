@@ -23,6 +23,19 @@ public interface IPaymentRequestRepository
     /// <returns>Найденная заявка или <see langword="null" />.</returns>
     Task<PaymentRequest?> GetByLabelAsync(string label, CancellationToken cancellationToken = default);
 
+
+    /// <summary>
+    /// Возвращает последнюю незавершённую заявку пользователя, если она ещё актуальна.
+    /// </summary>
+    /// <param name="userId">Идентификатор пользователя.</param>
+    /// <param name="currentUtc">Текущий момент времени в UTC.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Найденная заявка или <see langword="null" />.</returns>
+    Task<PaymentRequest?> GetActivePendingByUserIdAsync(
+        Guid userId,
+        DateTimeOffset currentUtc,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Добавляет новую заявку.
     /// </summary>

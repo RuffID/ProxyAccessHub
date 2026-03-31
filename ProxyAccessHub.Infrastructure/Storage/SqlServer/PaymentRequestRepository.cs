@@ -1,7 +1,9 @@
 using EFCoreLibrary.Abstractions.Database;
 using EFCoreLibrary.Abstractions.Database.Repository.Base;
+using Microsoft.EntityFrameworkCore;
 using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Domain.Entities;
+using ProxyAccessHub.Domain.Enums;
 using ProxyAccessHub.Infrastructure.Data;
 using ProxyAccessHub.Infrastructure.Data.Entities;
 
@@ -36,6 +38,23 @@ public class PaymentRequestRepository(
             request => request.Label == label.Trim(),
             asNoTracking: true,
             ct: cancellationToken);
+
+        return entity is null ? null : Map(entity);
+    }
+
+    /// <ingeritdoc />
+    public async Task<PaymentRequest?> GetActivePendingByUserIdAsync(Guid userId, DateTimeOffset currentUtc, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        PaymentRequestEntity? entity = await dbContext.Set<PaymentRequestEntity>()
+            .AsNoTracking()
+            .Where(request =>
+                request.UserId == userId
+                && request.Status == PaymentRequestStatus.Pending
+                && request.ExpiresAtUtc > currentUtc)
+            .OrderByDescending(request => request.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
 
         return entity is null ? null : Map(entity);
     }

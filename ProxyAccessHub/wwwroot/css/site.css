@@ -58,6 +58,19 @@ body {
     border: 1px solid rgba(129, 153, 185, 0.24);
 }
 
+.app-user-badge {
+    flex: 0 0 auto;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(77, 120, 171, 0.24);
+    background: linear-gradient(135deg, rgba(40, 110, 198, 0.18) 0%, rgba(70, 143, 214, 0.12) 100%);
+    color: #173a63;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
 .landing-page,
 .screen-page {
     min-height: calc(100vh - 72px);
@@ -483,6 +496,12 @@ body {
     .app-header-shell {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .app-user-badge {
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-word;
     }
 
     .landing-shell,

@@ -13,11 +13,6 @@ namespace ProxyAccessHub.Application.Services.Payments;
 /// <summary>
 /// Создаёт локальную заявку на оплату продления и данные формы ЮMoney.
 /// </summary>
-/// <param name="unitOfWork">UnitOfWork локального хранилища.</param>
-/// <param name="tariffCatalog">Каталог тарифов приложения.</param>
-/// <param name="tariffPriceResolver">Сервис вычисления эффективной цены периода.</param>
-/// <param name="proxyAccessHubOptions">Общие настройки приложения.</param>
-/// <param name="yooMoneyOptions">Настройки интеграции с ЮMoney.</param>
 public class UserPaymentRequestService(
     IProxyAccessHubUnitOfWork unitOfWork,
     ITariffCatalog tariffCatalog,
@@ -28,7 +23,7 @@ public class UserPaymentRequestService(
     private const string YOOMONEY_CONFIRM_URL = "https://yoomoney.ru/quickpay/confirm";
 
     /// <inheritdoc />
-    public async Task<YooMoneyPaymentFormModel> CreateAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<YooMoneyPaymentFormModel> GetOrCreateAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("Пользователь для оплаты не найден.");
@@ -71,6 +66,21 @@ public class UserPaymentRequestService(
         }
 
         DateTimeOffset createdAtUtc = DateTimeOffset.UtcNow;
+
+        PaymentRequest? activePaymentRequest = await unitOfWork.PaymentRequests.GetActivePendingByUserIdAsync(user.Id, createdAtUtc, cancellationToken);
+
+        if (activePaymentRequest is not null)
+        {
+            return new YooMoneyPaymentFormModel(
+                activePaymentRequest.Id,
+                YOOMONEY_CONFIRM_URL,
+                yooMoneyOptions.Value.Receiver.Trim(),
+                activePaymentRequest.Label,
+                activePaymentRequest.AmountRub,
+                yooMoneyOptions.Value.SuccessUrl.Trim(),
+                activePaymentRequest.ExpiresAtUtc);
+        }
+
         Guid paymentRequestId = Guid.NewGuid();
         string label = paymentRequestId.ToString("N");
         DateTimeOffset expiresAtUtc = createdAtUtc.AddMinutes(proxyAccessHubOptions.Value.PaymentRequestLifetimeMinutes);
