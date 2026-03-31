@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "ProxyAccessHub.Application": {
+      "commandName": "Project"
+    }
+  }
+}

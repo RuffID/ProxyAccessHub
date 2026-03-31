@@ -1,0 +1,102 @@
+@page
+@model ProxyAccessHub.Pages.User.NewConnectionModel
+@{
+    ViewData["Title"] = "Новое подключение";
+}
+
+<main class="screen-page">
+    <section class="screen-shell" aria-label="Экран создания нового подключения">
+        <div class="screen-copy">
+            <p class="screen-eyebrow">Новое подключение</p>
+            <h1 class="screen-title">Создание нового подключения с оплатой через YooMoney</h1>
+            <p class="screen-description">
+                Система создаст отдельную локальную заявку на оплату, после подтверждения платежа выпустит нового пользователя в telemt
+                и сохранит готовую proxy-ссылку в локальной базе.
+            </p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="screen-hint">@Model.ErrorMessage</div>
+        }
+
+        @if (Model.Offer is not null)
+        {
+            <section class="renew-result" aria-label="Параметры нового подключения">
+                <div class="renew-result-grid">
+                    <article class="renew-result-card">
+                        <span class="renew-result-label">Тариф</span>
+                        <strong class="renew-result-value">@Model.Offer.TariffName</strong>
+                        <span class="renew-result-note">Код тарифа: @Model.Offer.TariffCode</span>
+                    </article>
+
+                    <article class="renew-result-card">
+                        <span class="renew-result-label">Первый период</span>
+                        <strong class="renew-result-value">@Model.Offer.PeriodMonths мес.</strong>
+                        <span class="renew-result-note">Оплачивается первый полный период нового подключения.</span>
+                    </article>
+
+                    <article class="renew-result-card">
+                        <span class="renew-result-label">Сервер</span>
+                        <strong class="renew-result-value">@Model.Offer.ServerName</strong>
+                        <span class="renew-result-note">Выбирается первый незаполненный сервер по текущей локальной модели.</span>
+                    </article>
+
+                    <article class="renew-result-card">
+                        <span class="renew-result-label">Сумма к оплате</span>
+                        <strong class="renew-result-value">@Model.Offer.AmountRub.ToString("0.00") ₽</strong>
+                        <span class="renew-result-note">После успешной оплаты будет выполнен вызов `POST /v1/users` в telemt.</span>
+                    </article>
+                </div>
+
+                <form method="post" asp-page-handler="CreatePayment">
+                    <button class="screen-button" type="submit">Создать заявку на оплату</button>
+                </form>
+
+                @if (Model.PaymentForm is not null)
+                {
+                    <section class="payment-form-shell" aria-label="Форма оплаты YooMoney">
+                        <div class="renew-result-header">
+                            <p class="screen-eyebrow">Заявка создана</p>
+                            <h2 class="renew-result-title">Оплата нового подключения через YooMoney</h2>
+                            <p class="renew-result-subtitle">
+                                Метка платежа: @Model.PaymentForm.Label. После оплаты пользователь вернётся на страницу результата
+                                создания подключения.
+                            </p>
+                        </div>
+
+                        <form class="payment-form" method="post" action="@Model.PaymentForm.FormActionUrl">
+                            <input type="hidden" name="receiver" value="@Model.PaymentForm.Receiver" />
+                            <input type="hidden" name="quickpay-form" value="button" />
+                            <input type="hidden" name="label" value="@Model.PaymentForm.Label" />
+                            <input type="hidden" name="sum" value="@Model.PaymentForm.SumRub.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
+                            <input type="hidden" name="successURL" value="@Model.PaymentForm.SuccessUrl" />
+
+                            <div class="payment-form-grid">
+                                <article class="renew-result-card">
+                                    <span class="renew-result-label">Сумма к оплате</span>
+                                    <strong class="renew-result-value">@Model.PaymentForm.SumRub.ToString("0.00") ₽</strong>
+                                    <span class="renew-result-note">Локальная заявка действует до @Model.PaymentForm.ExpiresAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm").</span>
+                                </article>
+
+                                <article class="renew-result-card">
+                                    <span class="renew-result-label">Способ оплаты</span>
+                                    <label class="payment-method-option">
+                                        <input type="radio" name="paymentType" value="PC" checked />
+                                        <span>YooMoney</span>
+                                    </label>
+                                    <label class="payment-method-option">
+                                        <input type="radio" name="paymentType" value="AC" />
+                                        <span>Банковская карта</span>
+                                    </label>
+                                </article>
+                            </div>
+
+                            <button class="screen-button" type="submit">Перейти на страницу оплаты YooMoney</button>
+                        </form>
+                    </section>
+                }
+            </section>
+        }
+    </section>
+</main>

@@ -1,0 +1,83 @@
+@page
+@model ProxyAccessHub.Pages.User.NewConnectionResultModel
+@{
+    ViewData["Title"] = "Результат создания подключения";
+}
+
+<main class="screen-page">
+    <section class="screen-shell" aria-label="Результат создания нового подключения">
+        <div class="screen-copy">
+            <p class="screen-eyebrow">Результат оплаты</p>
+            <h1 class="screen-title">Статус создания нового подключения</h1>
+            <p class="screen-description">
+                После подтверждения оплаты YooMoney система создаёт пользователя в telemt и сохраняет результат в локальной базе.
+            </p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="screen-hint">@Model.ErrorMessage</div>
+        }
+        else if (Model.PaymentStatus is not null)
+        {
+            <section class="renew-result" aria-label="Текущий статус нового подключения">
+                <div class="renew-result-header">
+                    <p class="screen-eyebrow">@Model.PaymentStatus.StatusName</p>
+                    <h2 class="renew-result-title">@Model.PaymentStatus.Label</h2>
+                    <p class="renew-result-subtitle">@Model.PaymentStatus.StatusMessage</p>
+                </div>
+
+                <div class="renew-result-grid">
+                    <article class="renew-result-card">
+                        <span class="renew-result-label">Сумма заявки</span>
+                        <strong class="renew-result-value">@Model.PaymentStatus.AmountRub.ToString("0.00") ₽</strong>
+                        <span class="renew-result-note">Заявка действует до @Model.PaymentStatus.ExpiresAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm").</span>
+                    </article>
+
+                    <article class="renew-result-card">
+                        <span class="renew-result-label">Тариф</span>
+                        <strong class="renew-result-value">@Model.PaymentStatus.TariffName</strong>
+                        <span class="renew-result-note">Минимальная рабочая конфигурация этапа 12.</span>
+                    </article>
+
+                    @if (Model.PaymentStatus.IsCompleted)
+                    {
+                        <article class="renew-result-card">
+                            <span class="renew-result-label">Пользователь telemt</span>
+                            <strong class="renew-result-value">@Model.PaymentStatus.TelemtUserId</strong>
+                            <span class="renew-result-note">Пользователь создан и сохранён локально.</span>
+                        </article>
+
+                        <article class="renew-result-card">
+                            <span class="renew-result-label">Оплачено до</span>
+                            <strong class="renew-result-value">@(Model.PaymentStatus.AccessPaidToUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Не указано")</strong>
+                            <span class="renew-result-note">Срок первого оплаченного периода нового подключения.</span>
+                        </article>
+                    }
+                </div>
+
+                @if (Model.PaymentStatus.IsCompleted && !string.IsNullOrWhiteSpace(Model.PaymentStatus.ProxyLink))
+                {
+                    <article class="renew-result-card renew-result-card-wide">
+                        <span class="renew-result-label">Готовая proxy-ссылка</span>
+                        <strong class="renew-result-value renew-result-link">@Model.PaymentStatus.ProxyLink</strong>
+                        <span class="renew-result-note">Ссылка получена из telemt после успешного создания пользователя.</span>
+                    </article>
+                }
+                else if (Model.PaymentStatus.RequiresManualHandling)
+                {
+                    <article class="renew-result-card renew-result-card-wide">
+                        <span class="renew-result-label">Причина ручной обработки</span>
+                        <strong class="renew-result-value">@Model.PaymentStatus.ManualHandlingReason</strong>
+                        <span class="renew-result-note">Оплата не потеряна, кейс переведён в ручную обработку в админке.</span>
+                    </article>
+                }
+
+                <div class="screen-actions">
+                    <a class="screen-button" asp-page="/User/NewConnection" role="button">Создать ещё одно подключение</a>
+                    <a class="screen-button" asp-page="/User/NewConnectionResult" asp-route-paymentRequestId="@Model.PaymentStatus.PaymentRequestId" role="button">Обновить статус</a>
+                </div>
+            </section>
+        }
+    </section>
+</main>

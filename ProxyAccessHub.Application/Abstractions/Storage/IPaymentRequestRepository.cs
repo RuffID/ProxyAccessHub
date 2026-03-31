@@ -1,0 +1,39 @@
+using ProxyAccessHub.Domain.Entities;
+
+namespace ProxyAccessHub.Application.Abstractions.Storage;
+
+/// <summary>
+/// Репозиторий заявок на оплату.
+/// </summary>
+public interface IPaymentRequestRepository
+{
+    /// <summary>
+    /// Возвращает заявку по идентификатору.
+    /// </summary>
+    /// <param name="id">Идентификатор заявки.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Найденная заявка или <see langword="null" />.</returns>
+    Task<PaymentRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Возвращает заявку по внешнему label.
+    /// </summary>
+    /// <param name="label">Внешний идентификатор заявки.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Найденная заявка или <see langword="null" />.</returns>
+    Task<PaymentRequest?> GetByLabelAsync(string label, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Добавляет новую заявку.
+    /// </summary>
+    /// <param name="paymentRequest">Заявка для добавления.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    Task AddAsync(PaymentRequest paymentRequest, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Обновляет заявку.
+    /// </summary>
+    /// <param name="paymentRequest">Актуальное состояние заявки.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    Task UpdateAsync(PaymentRequest paymentRequest, CancellationToken cancellationToken = default);
+}

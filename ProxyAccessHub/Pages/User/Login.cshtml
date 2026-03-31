@@ -1,0 +1,32 @@
+@page
+@model ProxyAccessHub.Pages.User.LoginModel
+@{
+    ViewData["Title"] = "Вход пользователя";
+}
+
+<main class="screen-page">
+    <section class="screen-shell" aria-label="Вход обычного пользователя">
+        <div class="screen-copy">
+            <p class="screen-eyebrow">Пользовательский вход</p>
+            <h1 class="screen-title">Общий пароль для доступа к продлению подписки</h1>
+            <p class="screen-description">
+                На этом этапе страница фиксирует структуру будущего сценария. Здесь будет проверка общего пароля из конфигурации
+                и переход к экрану продления существующей подписки.
+            </p>
+        </div>
+
+        <form class="screen-form" method="post">
+            <label class="screen-label" asp-for="Password"></label>
+            <input class="screen-input" asp-for="Password" autocomplete="current-password" />
+            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+            {
+                <span class="screen-hint">@Model.ErrorMessage</span>
+            }
+            else
+            {
+                <span class="screen-hint">Введите общий пароль из конфигурации, после чего откроется экран продления подписки.</span>
+            }
+            <button class="screen-button" type="submit">Продолжить</button>
+        </form>
+    </section>
+</main>

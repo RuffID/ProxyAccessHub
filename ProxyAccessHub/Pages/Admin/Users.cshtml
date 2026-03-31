@@ -1,0 +1,210 @@
+@page
+@model ProxyAccessHub.Pages.Admin.UsersModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Пользователи";
+}
+
+<main class="screen-page admin-screen-page">
+    <section class="screen-shell admin-screen-shell" aria-label="Список пользователей">
+        <div class="screen-copy">
+            <p class="screen-eyebrow">Административная панель</p>
+            <h1 class="screen-title">Минимальное управление пользователями и тарифами</h1>
+            <p class="screen-description">
+                В таблице доступны ключевые данные пользователей из локальной базы, изменение тарифа и контроль кейсов,
+                которые ушли в ручную обработку после проблемного платежа.
+            </p>
+        </div>
+
+        <section class="renew-result" aria-label="Статус фоновой синхронизации telemt">
+            <div class="renew-result-header">
+                <p class="screen-eyebrow">Фоновая синхронизация telemt</p>
+                <h2 class="renew-result-title">@Model.PageData.TelemtSyncStatus.StatusName</h2>
+                <p class="renew-result-subtitle">@Model.PageData.TelemtSyncStatus.StatusMessage</p>
+            </div>
+
+            <div class="renew-result-grid">
+                <article class="renew-result-card">
+                    <span class="renew-result-label">Последний успешный проход</span>
+                    <strong class="renew-result-value">@(Model.PageData.TelemtSyncStatus.LastSuccessfulSyncAtUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture) ?? "Ещё не было")</strong>
+                    <span class="renew-result-note">Успешная сверка локальной базы с telemt.</span>
+                </article>
+
+                <article class="renew-result-card">
+                    <span class="renew-result-label">Последняя ошибка</span>
+                    <strong class="renew-result-value">@(Model.PageData.TelemtSyncStatus.LastFailedSyncAtUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture) ?? "Нет")</strong>
+                    <span class="renew-result-note">Если ошибка есть, следующий фоновой проход повторит синхронизацию.</span>
+                </article>
+
+                <article class="renew-result-card">
+                    <span class="renew-result-label">Ревизия telemt</span>
+                    <strong class="renew-result-value">@(Model.PageData.TelemtSyncStatus.Revision ?? "Нет данных")</strong>
+                    <span class="renew-result-note">Последняя успешно обработанная ревизия конфигурации telemt.</span>
+                </article>
+
+                <article class="renew-result-card">
+                    <span class="renew-result-label">Итоги последнего прохода</span>
+                    <strong class="renew-result-value">@(Model.PageData.TelemtSyncStatus.ProcessedUsers?.ToString(CultureInfo.InvariantCulture) ?? "0")</strong>
+                    <span class="renew-result-note">
+                        Создано: @(Model.PageData.TelemtSyncStatus.CreatedUsers?.ToString(CultureInfo.InvariantCulture) ?? "0"),
+                        обновлено: @(Model.PageData.TelemtSyncStatus.UpdatedUsers?.ToString(CultureInfo.InvariantCulture) ?? "0"),
+                        расхождений: @(Model.PageData.TelemtSyncStatus.MarkedForManualHandlingUsers?.ToString(CultureInfo.InvariantCulture) ?? "0").
+                    </span>
+                </article>
+            </div>
+        </section>
+
+        <form class="admin-filter-form" method="get">
+            <label class="admin-filter-option" for="onlyManualHandling">
+                @if (Model.OnlyManualHandling)
+                {
+                    <input id="onlyManualHandling" name="onlyManualHandling" type="checkbox" value="true" checked />
+                }
+                else
+                {
+                    <input id="onlyManualHandling" name="onlyManualHandling" type="checkbox" value="true" />
+                }
+                <span>Показывать только проблемные платежи</span>
+            </label>
+            <button class="screen-button admin-filter-button" type="submit">Применить</button>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+        {
+            <div class="admin-feedback admin-feedback-success" role="status">@Model.StatusMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="admin-feedback admin-feedback-error" role="alert">@Model.ErrorMessage</div>
+        }
+
+        @if (Model.PageData.Users.Count == 0)
+        {
+            <article class="placeholder-card">
+                <h2 class="placeholder-title">Пользователи не найдены</h2>
+                <p class="placeholder-text">Для текущего фильтра в локальной базе нет пользователей для отображения.</p>
+            </article>
+        }
+        else
+        {
+            <div class="admin-table-shell">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">telemt user id</th>
+                            <th scope="col">Сервер</th>
+                            <th scope="col">Тариф</th>
+                            <th scope="col">Баланс</th>
+                            <th scope="col">Оплачено до</th>
+                            <th scope="col">Ручная обработка</th>
+                            <th scope="col">Управление</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.PageData.Users)
+                        {
+                            string userKey = user.UserId.ToString("N", CultureInfo.InvariantCulture);
+
+                            <tr>
+                                <td class="admin-cell-primary">@user.TelemtUserId</td>
+                                <td>@user.ServerName</td>
+                                <td>
+                                    <div class="admin-cell-stack">
+                                        <strong>@user.TariffName</strong>
+                                        <span class="screen-hint">@user.TariffCode</span>
+                                    </div>
+                                </td>
+                                <td>@user.BalanceRub.ToString("0.00", CultureInfo.InvariantCulture) ₽</td>
+                                <td>@(user.AccessPaidToUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture) ?? "Не оплачено")</td>
+                                <td>
+                                    <div class="admin-cell-stack">
+                                        <strong class="@(user.RequiresManualHandling ? "admin-manual-badge" : string.Empty)">@user.ManualHandlingStatusName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(user.ManualHandlingReason))
+                                        {
+                                            <span class="screen-hint admin-manual-reason">@user.ManualHandlingReason</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <form class="admin-row-form" method="post" asp-page-handler="Update">
+                                        <input type="hidden" name="userId" value="@user.UserId" />
+                                        <input type="hidden" name="onlyManualHandling" value="@Model.OnlyManualHandling" />
+
+                                        <label class="screen-label admin-inline-label" for="tariff_@userKey">Тариф</label>
+                                        <select class="screen-input admin-select" id="tariff_@userKey" name="tariffCode">
+                                            @foreach (var tariff in Model.PageData.Tariffs)
+                                            {
+                                                if (tariff.Code == user.TariffCode)
+                                                {
+                                                    <option value="@tariff.Code" selected>@tariff.Name (@tariff.Code)</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@tariff.Code">@tariff.Name (@tariff.Code)</option>
+                                                }
+                                            }
+                                        </select>
+
+                                        <div class="admin-override-grid">
+                                            <div class="admin-override-field">
+                                                <label class="screen-label admin-inline-label" for="customPrice_@userKey">Индивидуальная цена</label>
+                                                <input class="screen-input admin-compact-input"
+                                                       id="customPrice_@userKey"
+                                                       name="customPeriodPriceRub"
+                                                       type="number"
+                                                       min="0.01"
+                                                       step="0.01"
+                                                       value="@(user.CustomPeriodPriceRub?.ToString("0.00", CultureInfo.InvariantCulture) ?? string.Empty)" />
+                                            </div>
+
+                                            <div class="admin-override-field">
+                                                <label class="screen-label admin-inline-label" for="discount_@userKey">Скидка, %</label>
+                                                <input class="screen-input admin-compact-input"
+                                                       id="discount_@userKey"
+                                                       name="discountPercent"
+                                                       type="number"
+                                                       min="0.01"
+                                                       max="99.99"
+                                                       step="0.01"
+                                                       value="@(user.DiscountPercent?.ToString("0.00", CultureInfo.InvariantCulture) ?? string.Empty)" />
+                                            </div>
+                                        </div>
+
+                                        @if (user.CustomPeriodPriceRub is decimal customPrice)
+                                        {
+                                            <span class="screen-hint">Текущая индивидуальная цена: @customPrice.ToString("0.00", CultureInfo.InvariantCulture) ₽.</span>
+                                        }
+                                        else if (user.DiscountPercent is decimal discountPercent)
+                                        {
+                                            <span class="screen-hint">Текущая скидка: @discountPercent.ToString("0.00", CultureInfo.InvariantCulture)%.</span>
+                                        }
+                                        else if (!user.TariffRequiresRenewal)
+                                        {
+                                            <span class="screen-hint">Для текущего тарифа индивидуальная цена и скидка не требуются.</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="screen-hint">Заполняйте либо цену, либо скидку. Оба пустых поля сбрасывают индивидуальные условия.</span>
+                                        }
+
+                                        <button class="screen-button admin-row-button" type="submit">Сохранить</button>
+                                    </form>
+
+                                    @if (user.RequiresManualHandling)
+                                    {
+                                        <form class="admin-complete-form" method="post" asp-page-handler="CompleteManualHandling">
+                                            <input type="hidden" name="userId" value="@user.UserId" />
+                                            <input type="hidden" name="onlyManualHandling" value="@Model.OnlyManualHandling" />
+                                            <button class="screen-button admin-secondary-button" type="submit">Отметить обработанным</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</main>

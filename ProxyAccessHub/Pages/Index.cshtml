@@ -1,19 +1,30 @@
 @page
 @model ProxyAccessHub.Pages.IndexModel
 @{
-    ViewData["Title"] = "Пополнение баланса";
+    ViewData["Title"] = "ProxyAccessHub";
 }
 
-<main class="payment-page">
-    <section class="payment-widget-shell" aria-label="Виджет пополнения баланса">
-        <iframe
-            class="payment-widget-frame"
-            src="@Model.WidgetUrl"
-            width="330"
-            height="50"
-            frameborder="0"
-            allowtransparency="true"
-            scrolling="no">
-        </iframe>
+<main class="landing-page">
+    <section class="landing-shell" aria-label="Стартовый экран ProxyAccessHub">
+        <div class="landing-copy">
+            <p class="landing-eyebrow">ProxyAccessHub</p>
+            <h1 class="landing-title">Первый этап каркаса для пользовательского и административного входа</h1>
+            <p class="landing-description">
+                Здесь начинается минимально доступный сайт: вход обычного пользователя, будущий сценарий продления подписки,
+                отдельный вход администратора и базовая структура под дальнейшее развитие проекта.
+            </p>
+        </div>
+
+        <div class="landing-actions">
+            <a class="landing-link-card" asp-page="/User/Login">
+                <span class="landing-link-title">Вход пользователя</span>
+                <span class="landing-link-text">Общий пароль, поиск подписки и дальнейший переход к оплате продления.</span>
+            </a>
+
+            <a class="landing-link-card" asp-page="/Admin/Login">
+                <span class="landing-link-title">Вход администратора</span>
+                <span class="landing-link-text">Отдельный вход, список пользователей и будущая настройка тарифов.</span>
+            </a>
+        </div>
     </section>
 </main>

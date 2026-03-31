@@ -7,6 +7,19 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+    <header class="app-header">
+        <div class="app-header-shell">
+            <a class="app-brand" asp-page="/Index">ProxyAccessHub</a>
+            <nav class="app-nav" aria-label="Основная навигация">
+                <a class="app-nav-link" asp-page="/User/Login">Пользователь</a>
+                <a class="app-nav-link" asp-page="/User/Renew">Продление</a>
+                <a class="app-nav-link" asp-page="/Admin/Login">Админ</a>
+                <a class="app-nav-link" asp-page="/Admin/Users">Пользователи</a>
+                <a class="app-nav-link" asp-page="/User/NewConnection">Новое подключение</a>
+            </nav>
+        </div>
+    </header>
+
     @RenderBody()
 </body>
 </html>
