@@ -14,27 +14,11 @@ namespace ProxyAccessHub.Application.Services.Users;
 /// <summary>
 /// Обслуживает минимальные административные сценарии управления пользователями.
 /// </summary>
-public sealed class AdminUserManagementService : IAdminUserManagementService
+public sealed class AdminUserManagementService(
+    IProxyAccessHubUnitOfWork unitOfWork,
+    ITariffCatalog tariffCatalog,
+    ITelemtSyncStateStore telemtSyncStateStore) : IAdminUserManagementService
 {
-    private readonly IProxyAccessHubUnitOfWork unitOfWork;
-    private readonly ITariffCatalog tariffCatalog;
-    private readonly ITelemtSyncStateStore telemtSyncStateStore;
-
-    /// <summary>
-    /// Инициализирует сервис минимальной админки пользователей.
-    /// </summary>
-    /// <param name="unitOfWork">UnitOfWork локального хранилища.</param>
-    /// <param name="tariffCatalog">Каталог тарифов приложения.</param>
-    public AdminUserManagementService(
-        IProxyAccessHubUnitOfWork unitOfWork,
-        ITariffCatalog tariffCatalog,
-        ITelemtSyncStateStore telemtSyncStateStore)
-    {
-        this.unitOfWork = unitOfWork;
-        this.tariffCatalog = tariffCatalog;
-        this.telemtSyncStateStore = telemtSyncStateStore;
-    }
-
     /// <inheritdoc />
     public async Task<AdminUsersPageData> GetPageDataAsync(bool onlyManualHandling, CancellationToken cancellationToken = default)
     {
@@ -54,12 +38,7 @@ public sealed class AdminUserManagementService : IAdminUserManagementService
     }
 
     /// <inheritdoc />
-    public async Task UpdateUserTariffAsync(
-        Guid userId,
-        string tariffCode,
-        decimal? customPeriodPriceRub,
-        decimal? discountPercent,
-        CancellationToken cancellationToken = default)
+    public async Task UpdateUserTariffAsync(Guid userId, string tariffCode, decimal? customPeriodPriceRub, decimal? discountPercent, CancellationToken cancellationToken = default)
     {
         ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("Пользователь для обновления тарифа не найден.");
@@ -121,10 +100,7 @@ public sealed class AdminUserManagementService : IAdminUserManagementService
             user.TariffSettings?.DiscountPercent);
     }
 
-    private static UserTariffSettings? BuildTariffSettings(
-        TariffPlan tariff,
-        decimal? customPeriodPriceRub,
-        decimal? discountPercent)
+    private static UserTariffSettings? BuildTariffSettings(TariffPlan tariff, decimal? customPeriodPriceRub, decimal? discountPercent)
     {
         if (customPeriodPriceRub is null && discountPercent is null)
         {

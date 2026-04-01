@@ -17,48 +17,16 @@ namespace ProxyAccessHub.Application.Services.Users;
 /// <summary>
 /// Реализует пользовательский сценарий создания нового подключения.
 /// </summary>
-public sealed class UserConnectionCreationService : IUserConnectionCreationService
+public sealed class UserConnectionCreationService(
+    IProxyAccessHubUnitOfWork unitOfWork,
+    ITariffCatalog tariffCatalog,
+    ITariffPriceResolver tariffPriceResolver,
+    IUserPaymentRequestService userPaymentRequestService,
+    ITelemtApiClient telemtApiClient,
+    IOptions<TelemtOptions> telemtOptions,
+    IOptions<ProxyServerPoolOptions> proxyServerPoolOptions,
+    IOptions<YooMoneyOptions> yooMoneyOptions) : IUserConnectionCreationService
 {
-    private readonly IProxyAccessHubUnitOfWork unitOfWork;
-    private readonly ITariffCatalog tariffCatalog;
-    private readonly ITariffPriceResolver tariffPriceResolver;
-    private readonly IUserPaymentRequestService userPaymentRequestService;
-    private readonly ITelemtApiClient telemtApiClient;
-    private readonly TelemtOptions telemtOptions;
-    private readonly ProxyServerPoolOptions proxyServerPoolOptions;
-    private readonly YooMoneyOptions yooMoneyOptions;
-
-    /// <summary>
-    /// Инициализирует сервис создания нового подключения.
-    /// </summary>
-    /// <param name="unitOfWork">UnitOfWork локального хранилища.</param>
-    /// <param name="tariffCatalog">Каталог тарифов приложения.</param>
-    /// <param name="tariffPriceResolver">Сервис вычисления эффективной стоимости периода.</param>
-    /// <param name="userPaymentRequestService">Сервис создания локальных заявок на оплату.</param>
-    /// <param name="telemtApiClient">Клиент telemt API.</param>
-    /// <param name="telemtOptions">Настройки telemt.</param>
-    /// <param name="proxyServerPoolOptions">Настройки лимитов серверов.</param>
-    /// <param name="yooMoneyOptions">Настройки YooMoney.</param>
-    public UserConnectionCreationService(
-        IProxyAccessHubUnitOfWork unitOfWork,
-        ITariffCatalog tariffCatalog,
-        ITariffPriceResolver tariffPriceResolver,
-        IUserPaymentRequestService userPaymentRequestService,
-        ITelemtApiClient telemtApiClient,
-        IOptions<TelemtOptions> telemtOptions,
-        IOptions<ProxyServerPoolOptions> proxyServerPoolOptions,
-        IOptions<YooMoneyOptions> yooMoneyOptions)
-    {
-        this.unitOfWork = unitOfWork;
-        this.tariffCatalog = tariffCatalog;
-        this.tariffPriceResolver = tariffPriceResolver;
-        this.userPaymentRequestService = userPaymentRequestService;
-        this.telemtApiClient = telemtApiClient;
-        this.telemtOptions = telemtOptions.Value;
-        this.proxyServerPoolOptions = proxyServerPoolOptions.Value;
-        this.yooMoneyOptions = yooMoneyOptions.Value;
-    }
-
     /// <inheritdoc />
     public async Task<NewConnectionOffer> GetOfferAsync(CancellationToken cancellationToken = default)
     {
@@ -266,17 +234,17 @@ public sealed class UserConnectionCreationService : IUserConnectionCreationServi
 
         IReadOnlyList<ProxyServer> servers = await unitOfWork.Servers.GetAllAsync(cancellationToken);
         ProxyServer? telemtServer = servers.FirstOrDefault(server =>
-            string.Equals(server.Code, telemtOptions.ServerCode.Trim(), StringComparison.OrdinalIgnoreCase));
+            string.Equals(server.Code, telemtOptions.Value.ServerCode.Trim(), StringComparison.OrdinalIgnoreCase));
 
         if (telemtServer is null)
         {
             Uri apiUri = CreateApiUri();
             telemtServer = new ProxyServer(
                 Guid.NewGuid(),
-                telemtOptions.ServerCode.Trim(),
-                telemtOptions.ServerName.Trim(),
+                telemtOptions.Value.ServerCode.Trim(),
+                telemtOptions.Value.ServerName.Trim(),
                 apiUri.Host,
-                proxyServerPoolOptions.DefaultMaxUsersPerServer);
+                proxyServerPoolOptions.Value.DefaultMaxUsersPerServer);
 
             await unitOfWork.Servers.AddAsync(telemtServer, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -302,12 +270,12 @@ public sealed class UserConnectionCreationService : IUserConnectionCreationServi
 
     private string BuildPaymentSuccessUrl(Guid paymentRequestId)
     {
-        if (string.IsNullOrWhiteSpace(yooMoneyOptions.SuccessUrl))
+        if (string.IsNullOrWhiteSpace(yooMoneyOptions.Value.SuccessUrl))
         {
             throw new InvalidOperationException("В конфигурации YooMoney не задан URL возврата после оплаты.");
         }
 
-        Uri baseUri = new(yooMoneyOptions.SuccessUrl.Trim(), UriKind.Absolute);
+        Uri baseUri = new(yooMoneyOptions.Value.SuccessUrl.Trim(), UriKind.Absolute);
         string separator = string.IsNullOrEmpty(baseUri.Query) ? "?" : "&";
         return baseUri + $"{separator}paymentRequestId={paymentRequestId:D}";
     }
@@ -316,17 +284,17 @@ public sealed class UserConnectionCreationService : IUserConnectionCreationServi
     {
         CreateApiUri();
 
-        if (string.IsNullOrWhiteSpace(telemtOptions.ServerCode))
+        if (string.IsNullOrWhiteSpace(telemtOptions.Value.ServerCode))
         {
             throw new InvalidOperationException("Не задан код сервера telemt.");
         }
 
-        if (string.IsNullOrWhiteSpace(telemtOptions.ServerName))
+        if (string.IsNullOrWhiteSpace(telemtOptions.Value.ServerName))
         {
             throw new InvalidOperationException("Не задано название сервера telemt.");
         }
 
-        if (proxyServerPoolOptions.DefaultMaxUsersPerServer <= 0)
+        if (proxyServerPoolOptions.Value.DefaultMaxUsersPerServer <= 0)
         {
             throw new InvalidOperationException("Лимит пользователей на сервере должен быть больше нуля.");
         }
@@ -334,7 +302,7 @@ public sealed class UserConnectionCreationService : IUserConnectionCreationServi
 
     private Uri CreateApiUri()
     {
-        if (!Uri.TryCreate(telemtOptions.ApiBaseUrl, UriKind.Absolute, out Uri? apiUri))
+        if (!Uri.TryCreate(telemtOptions.Value.ApiBaseUrl, UriKind.Absolute, out Uri? apiUri))
         {
             throw new InvalidOperationException("Адрес telemt API должен быть задан абсолютным URL.");
         }

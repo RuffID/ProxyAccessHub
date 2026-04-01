@@ -10,24 +10,8 @@ namespace ProxyAccessHub.Application.Services.Subscriptions;
 /// <summary>
 /// Реализует бизнес-логику продления подписки после поступления платежа.
 /// </summary>
-public class UserSubscriptionRenewalService : IUserSubscriptionRenewalService
+public class UserSubscriptionRenewalService(ITariffCatalog tariffCatalog, ITariffRenewalCalculator tariffRenewalCalculator) : IUserSubscriptionRenewalService
 {
-    private readonly ITariffCatalog tariffCatalog;
-    private readonly ITariffRenewalCalculator tariffRenewalCalculator;
-
-    /// <summary>
-    /// Инициализирует сервис применения платежа к подписке.
-    /// </summary>
-    /// <param name="tariffCatalog">Каталог тарифов приложения.</param>
-    /// <param name="tariffRenewalCalculator">Сервис расчёта продления.</param>
-    public UserSubscriptionRenewalService(
-        ITariffCatalog tariffCatalog,
-        ITariffRenewalCalculator tariffRenewalCalculator)
-    {
-        this.tariffCatalog = tariffCatalog;
-        this.tariffRenewalCalculator = tariffRenewalCalculator;
-    }
-
     /// <inheritdoc />
     public UserSubscriptionRenewalResult Apply(
         ProxyUser user,
@@ -65,11 +49,7 @@ public class UserSubscriptionRenewalService : IUserSubscriptionRenewalService
         return new UserSubscriptionRenewalResult(updatedUser, updatedSubscription, calculation);
     }
 
-    private static Subscription? BuildSubscription(
-        ProxyUser updatedUser,
-        Subscription? currentSubscription,
-        DateTimeOffset calculatedAtUtc,
-        TariffRenewalCalculationResult calculation)
+    private static Subscription? BuildSubscription(ProxyUser updatedUser, Subscription? currentSubscription, DateTimeOffset calculatedAtUtc, TariffRenewalCalculationResult calculation)
     {
         if (currentSubscription is null)
         {

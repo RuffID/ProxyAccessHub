@@ -6,19 +6,8 @@ namespace ProxyAccessHub.Application.Services.Tariffs;
 /// <summary>
 /// Выполняет базовый расчёт продления с учётом только полных периодов.
 /// </summary>
-public sealed class TariffRenewalCalculator : ITariffRenewalCalculator
+public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceResolver) : ITariffRenewalCalculator
 {
-    private readonly ITariffPriceResolver tariffPriceResolver;
-
-    /// <summary>
-    /// Инициализирует сервис расчёта продления.
-    /// </summary>
-    /// <param name="tariffPriceResolver">Сервис вычисления эффективной цены периода.</param>
-    public TariffRenewalCalculator(ITariffPriceResolver tariffPriceResolver)
-    {
-        this.tariffPriceResolver = tariffPriceResolver;
-    }
-
     /// <inheritdoc />
     public TariffRenewalCalculationResult Calculate(TariffRenewalCalculationRequest request)
     {

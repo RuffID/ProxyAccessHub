@@ -10,27 +10,11 @@ namespace ProxyAccessHub.Application.Services.Users;
 /// <summary>
 /// Ищет пользователя для экрана продления и рассчитывает сумму следующего периода.
 /// </summary>
-public class UserRenewalLookupService : IUserRenewalLookupService
+public class UserRenewalLookupService(
+    IProxyAccessHubUnitOfWork unitOfWork,
+    ITariffCatalog tariffCatalog,
+    ITariffPriceResolver tariffPriceResolver) : IUserRenewalLookupService
 {
-    private readonly IProxyAccessHubUnitOfWork unitOfWork;
-    private readonly ITariffCatalog tariffCatalog;
-    private readonly ITariffPriceResolver tariffPriceResolver;
-
-    /// <summary>
-    /// Инициализирует сервис поиска пользователя для продления.
-    /// </summary>
-    /// <param name="unitOfWork">UnitOfWork локального хранилища.</param>
-    /// <param name="tariffCatalog">Каталог тарифов приложения.</param>
-    /// <param name="tariffPriceResolver">Сервис вычисления эффективной цены периода.</param>
-    public UserRenewalLookupService(
-        IProxyAccessHubUnitOfWork unitOfWork,
-        ITariffCatalog tariffCatalog,
-        ITariffPriceResolver tariffPriceResolver)
-    {
-        this.unitOfWork = unitOfWork;
-        this.tariffCatalog = tariffCatalog;
-        this.tariffPriceResolver = tariffPriceResolver;
-    }
 
     /// <inheritdoc />
     public async Task<UserRenewalLookupResult> FindAsync(string searchValue, CancellationToken cancellationToken = default)

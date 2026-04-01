@@ -20,32 +20,13 @@ namespace ProxyAccessHub.Application.Services.Payments;
 /// <summary>
 /// Обрабатывает уведомления YooMoney и применяет оплату к пользователю.
 /// </summary>
-public class YooMoneyNotificationService : IYooMoneyNotificationService
+public class YooMoneyNotificationService(
+    IProxyAccessHubUnitOfWork unitOfWork,
+    IUserSubscriptionRenewalService userSubscriptionRenewalService,
+    IUserConnectionCreationService userConnectionCreationService,
+    IOptions<YooMoneyOptions> yooMoneyOptions) : IYooMoneyNotificationService
 {
     private const string EXPECTED_CURRENCY = "643";
-
-    private readonly IProxyAccessHubUnitOfWork unitOfWork;
-    private readonly IUserSubscriptionRenewalService userSubscriptionRenewalService;
-    private readonly IUserConnectionCreationService userConnectionCreationService;
-    private readonly YooMoneyOptions yooMoneyOptions;
-
-    /// <summary>
-    /// Инициализирует сервис обработки уведомлений YooMoney.
-    /// </summary>
-    /// <param name="unitOfWork">UnitOfWork локального хранилища.</param>
-    /// <param name="userSubscriptionRenewalService">Сервис применения платежа к пользователю и подписке.</param>
-    /// <param name="yooMoneyOptions">Настройки интеграции с ЮMoney.</param>
-    public YooMoneyNotificationService(
-        IProxyAccessHubUnitOfWork unitOfWork,
-        IUserSubscriptionRenewalService userSubscriptionRenewalService,
-        IUserConnectionCreationService userConnectionCreationService,
-        IOptions<YooMoneyOptions> yooMoneyOptions)
-    {
-        this.unitOfWork = unitOfWork;
-        this.userSubscriptionRenewalService = userSubscriptionRenewalService;
-        this.userConnectionCreationService = userConnectionCreationService;
-        this.yooMoneyOptions = yooMoneyOptions.Value;
-    }
 
     /// <inheritdoc />
     public async Task ProcessAsync(YooMoneyNotificationModel notification, CancellationToken cancellationToken = default)
@@ -262,7 +243,7 @@ public class YooMoneyNotificationService : IYooMoneyNotificationService
 
     private void EnsureSignature(YooMoneyNotificationModel notification)
     {
-        if (string.IsNullOrWhiteSpace(yooMoneyOptions.NotificationSecret))
+        if (string.IsNullOrWhiteSpace(yooMoneyOptions.Value.NotificationSecret))
         {
             throw new InvalidOperationException("В конфигурации ЮMoney не задан секрет для проверки уведомлений.");
         }
@@ -275,7 +256,7 @@ public class YooMoneyNotificationService : IYooMoneyNotificationService
             notification.DateTimeRaw.Trim(),
             notification.Sender.Trim(),
             notification.CodePro.Trim(),
-            yooMoneyOptions.NotificationSecret.Trim(),
+            yooMoneyOptions.Value.NotificationSecret.Trim(),
             notification.Label.Trim());
 
         byte[] hash = SHA1.HashData(Encoding.UTF8.GetBytes(signaturePayload));
