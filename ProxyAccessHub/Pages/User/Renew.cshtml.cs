@@ -22,6 +22,7 @@ public sealed class RenewModel : PageModel
     /// <summary>
     /// Инициализирует страницу продления существующей подписки.
     /// </summary>
+    /// <param name="userPaymentRequestService">Сервис создания платёжной заявки для продления.</param>
     /// <param name="userRenewalLookupService">Сервис поиска пользователя для продления.</param>
     public RenewModel(
         IUserPaymentRequestService userPaymentRequestService,
@@ -34,8 +35,8 @@ public sealed class RenewModel : PageModel
     /// <summary>
     /// Значение для поиска пользователя.
     /// </summary>
-    [BindProperty]
-    [Display(Name = "Telemt id или окончание proxy-ссылки")]
+    [BindProperty(SupportsGet = true)]
+    [Display(Name = "Proxy-ссылка:")]
     public string SearchValue { get; set; } = string.Empty;
 
     /// <summary>
@@ -54,18 +55,15 @@ public sealed class RenewModel : PageModel
     public YooMoneyPaymentFormModel? PaymentForm { get; private set; }
 
     /// <summary>
-    /// Обрабатывает открытие страницы.
+    /// Обрабатывает открытие страницы и поиск пользователя по query-параметру.
     /// </summary>
-    public void OnGet()
+    public async Task OnGetAsync()
     {
-    }
+        if (string.IsNullOrWhiteSpace(SearchValue))
+        {
+            return;
+        }
 
-    /// <summary>
-    /// Обрабатывает отправку формы поиска.
-    /// </summary>
-    /// <returns>Текущий результат обработки запроса.</returns>
-    public async Task<IActionResult> OnPostAsync()
-    {
         try
         {
             LookupResult = await userRenewalLookupService.FindAsync(SearchValue, HttpContext.RequestAborted);
@@ -74,21 +72,20 @@ public sealed class RenewModel : PageModel
         {
             ErrorMessage = ex.Message;
         }
-
-        return Page();
     }
 
     /// <summary>
     /// Создаёт локальную заявку на оплату и форму ЮMoney.
     /// </summary>
     /// <param name="userId">Локальный идентификатор пользователя.</param>
+    /// <param name="preservedSearchValue">Исходная proxy-ссылка, введённая пользователем.</param>
     /// <returns>Текущий результат обработки запроса.</returns>
-    public async Task<IActionResult> OnPostCreatePaymentAsync(Guid userId)
+    public async Task<IActionResult> OnPostCreatePaymentAsync(Guid userId, string? preservedSearchValue)
     {
         try
         {
             LookupResult = await userRenewalLookupService.GetByUserIdAsync(userId, HttpContext.RequestAborted);
-            SearchValue = LookupResult.TelemtUserId;
+            SearchValue = preservedSearchValue?.Trim() ?? string.Empty;
             PaymentForm = await userPaymentRequestService.GetOrCreateAsync(userId, HttpContext.RequestAborted);
         }
         catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)

@@ -1,83 +1,107 @@
 @page
 @model ProxyAccessHub.Pages.User.NewConnectionResultModel
+@using System.Globalization
 @{
     ViewData["Title"] = "Результат создания подключения";
 }
 
-<main class="screen-page">
-    <section class="screen-shell" aria-label="Результат создания нового подключения">
-        <div class="screen-copy">
-            <p class="screen-eyebrow">Результат оплаты</p>
-            <h1 class="screen-title">Статус создания нового подключения</h1>
-            <p class="screen-description">
-                После подтверждения оплаты YooMoney система создаёт пользователя в telemt и сохраняет результат в локальной базе.
-            </p>
-        </div>
+<main class="container py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <h1 class="display-6 mb-3">Статус создания нового подключения</h1>
+                        <p class="text-secondary mb-0">
+                            После подтверждения оплаты YooMoney система создаёт пользователя в telemt и сохраняет результат в локальной базе.
+                        </p>
+                    </div>
 
-        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-        {
-            <div class="screen-hint">@Model.ErrorMessage</div>
-        }
-        else if (Model.PaymentStatus is not null)
-        {
-            <section class="renew-result" aria-label="Текущий статус нового подключения">
-                <div class="renew-result-header">
-                    <p class="screen-eyebrow">@Model.PaymentStatus.StatusName</p>
-                    <h2 class="renew-result-title">@Model.PaymentStatus.Label</h2>
-                    <p class="renew-result-subtitle">@Model.PaymentStatus.StatusMessage</p>
-                </div>
-
-                <div class="renew-result-grid">
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Сумма заявки</span>
-                        <strong class="renew-result-value">@Model.PaymentStatus.AmountRub.ToString("0.00") ₽</strong>
-                        <span class="renew-result-note">Заявка действует до @Model.PaymentStatus.ExpiresAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm").</span>
-                    </article>
-
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Тариф</span>
-                        <strong class="renew-result-value">@Model.PaymentStatus.TariffName</strong>
-                        <span class="renew-result-note">Минимальная рабочая конфигурация этапа 12.</span>
-                    </article>
-
-                    @if (Model.PaymentStatus.IsCompleted)
+                    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
                     {
-                        <article class="renew-result-card">
-                            <span class="renew-result-label">Пользователь telemt</span>
-                            <strong class="renew-result-value">@Model.PaymentStatus.TelemtUserId</strong>
-                            <span class="renew-result-note">Пользователь создан и сохранён локально.</span>
-                        </article>
+                        <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+                    }
+                    else if (Model.PaymentStatus is not null)
+                    {
+                        <div class="mb-4 text-center">
+                            <div class="text-uppercase small fw-semibold text-secondary mb-2">@Model.PaymentStatus.StatusName</div>
+                            <h2 class="h3 mb-2">@Model.PaymentStatus.Label</h2>
+                            <p class="text-secondary mb-0">@Model.PaymentStatus.StatusMessage</p>
+                        </div>
 
-                        <article class="renew-result-card">
-                            <span class="renew-result-label">Оплачено до</span>
-                            <strong class="renew-result-value">@(Model.PaymentStatus.AccessPaidToUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Не указано")</strong>
-                            <span class="renew-result-note">Срок первого оплаченного периода нового подключения.</span>
-                        </article>
+                        <div class="row g-3 mb-4">
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Сумма заявки</div>
+                                        <div class="fs-4 fw-semibold">@Model.PaymentStatus.AmountRub.ToString("0.00", CultureInfo.InvariantCulture) ₽</div>
+                                        <div class="text-secondary">Заявка действует до @Model.PaymentStatus.ExpiresAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture).</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Тариф</div>
+                                        <div class="fs-4 fw-semibold">@Model.PaymentStatus.TariffName</div>
+                                        <div class="text-secondary">Минимальная рабочая конфигурация этапа подключения.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (Model.PaymentStatus.IsCompleted)
+                            {
+                                <div class="col-12 col-md-6">
+                                    <div class="card h-100 border">
+                                        <div class="card-body">
+                                            <div class="text-uppercase small fw-semibold text-secondary mb-2">Пользователь telemt</div>
+                                            <div class="fs-4 fw-semibold">@Model.PaymentStatus.TelemtUserId</div>
+                                            <div class="text-secondary">Пользователь создан и сохранён локально.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <div class="card h-100 border">
+                                        <div class="card-body">
+                                            <div class="text-uppercase small fw-semibold text-secondary mb-2">Оплачено до</div>
+                                            <div class="fs-4 fw-semibold">@(Model.PaymentStatus.AccessPaidToUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture) ?? "Не указано")</div>
+                                            <div class="text-secondary">Срок первого оплаченного периода нового подключения.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        @if (Model.PaymentStatus.IsCompleted && !string.IsNullOrWhiteSpace(Model.PaymentStatus.ProxyLink))
+                        {
+                            <div class="card border mb-4">
+                                <div class="card-body">
+                                    <div class="text-uppercase small fw-semibold text-secondary mb-2">Готовая proxy-ссылка</div>
+                                    <div class="fw-semibold text-break">@Model.PaymentStatus.ProxyLink</div>
+                                    <div class="text-secondary mt-2">Ссылка получена из telemt после успешного создания пользователя.</div>
+                                </div>
+                            </div>
+                        }
+                        else if (Model.PaymentStatus.RequiresManualHandling)
+                        {
+                            <div class="card border mb-4">
+                                <div class="card-body">
+                                    <div class="text-uppercase small fw-semibold text-secondary mb-2">Причина ручной обработки</div>
+                                    <div class="fw-semibold">@Model.PaymentStatus.ManualHandlingReason</div>
+                                    <div class="text-secondary mt-2">Оплата не потеряна, кейс переведён в ручную обработку в админке.</div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="d-flex flex-column flex-md-row gap-3">
+                            <a class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-semibold" asp-page="/User/NewConnection" role="button">Создать ещё одно подключение</a>
+                            <a class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-semibold" asp-page="/User/NewConnectionResult" asp-route-paymentRequestId="@Model.PaymentStatus.PaymentRequestId" role="button">Обновить статус</a>
+                        </div>
                     }
                 </div>
-
-                @if (Model.PaymentStatus.IsCompleted && !string.IsNullOrWhiteSpace(Model.PaymentStatus.ProxyLink))
-                {
-                    <article class="renew-result-card renew-result-card-wide">
-                        <span class="renew-result-label">Готовая proxy-ссылка</span>
-                        <strong class="renew-result-value renew-result-link">@Model.PaymentStatus.ProxyLink</strong>
-                        <span class="renew-result-note">Ссылка получена из telemt после успешного создания пользователя.</span>
-                    </article>
-                }
-                else if (Model.PaymentStatus.RequiresManualHandling)
-                {
-                    <article class="renew-result-card renew-result-card-wide">
-                        <span class="renew-result-label">Причина ручной обработки</span>
-                        <strong class="renew-result-value">@Model.PaymentStatus.ManualHandlingReason</strong>
-                        <span class="renew-result-note">Оплата не потеряна, кейс переведён в ручную обработку в админке.</span>
-                    </article>
-                }
-
-                <div class="screen-actions">
-                    <a class="screen-button" asp-page="/User/NewConnection" role="button">Создать ещё одно подключение</a>
-                    <a class="screen-button" asp-page="/User/NewConnectionResult" asp-route-paymentRequestId="@Model.PaymentStatus.PaymentRequestId" role="button">Обновить статус</a>
-                </div>
-            </section>
-        }
-    </section>
+            </div>
+        </div>
+    </div>
 </main>

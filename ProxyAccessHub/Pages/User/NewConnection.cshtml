@@ -1,102 +1,134 @@
 @page
 @model ProxyAccessHub.Pages.User.NewConnectionModel
+@using System.Globalization
 @{
-    ViewData["Title"] = "Новое подключение";
+    ViewData["Title"] = "Получить ссылку на прокси";
 }
 
-<main class="screen-page">
-    <section class="screen-shell" aria-label="Экран создания нового подключения">
-        <div class="screen-copy">
-            <p class="screen-eyebrow">Новое подключение</p>
-            <h1 class="screen-title">Создание нового подключения с оплатой через YooMoney</h1>
-            <p class="screen-description">
-                Система создаст отдельную локальную заявку на оплату, после подтверждения платежа выпустит нового пользователя в telemt
-                и сохранит готовую proxy-ссылку в локальной базе.
-            </p>
-        </div>
+<main class="container py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <h1 class="display-6 mb-3">Получить ссылку на прокси</h1>
+                        <p class="text-secondary mb-0">
+                            Система создаст локальную заявку на оплату, а после подтверждения платежа выпустит нового пользователя в telemt
+                            и сохранит готовую proxy-ссылку в локальной базе.
+                        </p>
+                    </div>
 
-        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-        {
-            <div class="screen-hint">@Model.ErrorMessage</div>
-        }
+                    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger mb-4" role="alert">@Model.ErrorMessage</div>
+                    }
 
-        @if (Model.Offer is not null)
-        {
-            <section class="renew-result" aria-label="Параметры нового подключения">
-                <div class="renew-result-grid">
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Тариф</span>
-                        <strong class="renew-result-value">@Model.Offer.TariffName</strong>
-                        <span class="renew-result-note">Код тарифа: @Model.Offer.TariffCode</span>
-                    </article>
-
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Первый период</span>
-                        <strong class="renew-result-value">@Model.Offer.PeriodMonths мес.</strong>
-                        <span class="renew-result-note">Оплачивается первый полный период нового подключения.</span>
-                    </article>
-
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Сервер</span>
-                        <strong class="renew-result-value">@Model.Offer.ServerName</strong>
-                        <span class="renew-result-note">Выбирается первый незаполненный сервер по текущей локальной модели.</span>
-                    </article>
-
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Сумма к оплате</span>
-                        <strong class="renew-result-value">@Model.Offer.AmountRub.ToString("0.00") ₽</strong>
-                        <span class="renew-result-note">После успешной оплаты будет выполнен вызов `POST /v1/users` в telemt.</span>
-                    </article>
-                </div>
-
-                <form method="post" asp-page-handler="CreatePayment">
-                    <button class="screen-button" type="submit">Создать заявку на оплату</button>
-                </form>
-
-                @if (Model.PaymentForm is not null)
-                {
-                    <section class="payment-form-shell" aria-label="Форма оплаты YooMoney">
-                        <div class="renew-result-header">
-                            <p class="screen-eyebrow">Заявка создана</p>
-                            <h2 class="renew-result-title">Оплата нового подключения через YooMoney</h2>
-                            <p class="renew-result-subtitle">
-                                Метка платежа: @Model.PaymentForm.Label. После оплаты пользователь вернётся на страницу результата
-                                создания подключения.
-                            </p>
-                        </div>
-
-                        <form class="payment-form" method="post" action="@Model.PaymentForm.FormActionUrl">
-                            <input type="hidden" name="receiver" value="@Model.PaymentForm.Receiver" />
-                            <input type="hidden" name="quickpay-form" value="button" />
-                            <input type="hidden" name="label" value="@Model.PaymentForm.Label" />
-                            <input type="hidden" name="sum" value="@Model.PaymentForm.SumRub.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
-                            <input type="hidden" name="successURL" value="@Model.PaymentForm.SuccessUrl" />
-
-                            <div class="payment-form-grid">
-                                <article class="renew-result-card">
-                                    <span class="renew-result-label">Сумма к оплате</span>
-                                    <strong class="renew-result-value">@Model.PaymentForm.SumRub.ToString("0.00") ₽</strong>
-                                    <span class="renew-result-note">Локальная заявка действует до @Model.PaymentForm.ExpiresAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm").</span>
-                                </article>
-
-                                <article class="renew-result-card">
-                                    <span class="renew-result-label">Способ оплаты</span>
-                                    <label class="payment-method-option">
-                                        <input type="radio" name="paymentType" value="PC" checked />
-                                        <span>YooMoney</span>
-                                    </label>
-                                    <label class="payment-method-option">
-                                        <input type="radio" name="paymentType" value="AC" />
-                                        <span>Банковская карта</span>
-                                    </label>
-                                </article>
+                    @if (Model.Offer is not null)
+                    {
+                        <div class="row g-3 mb-4">
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Тариф</div>
+                                        <div class="fs-4 fw-semibold">@Model.Offer.TariffName</div>
+                                        <div class="text-secondary">Код тарифа: @Model.Offer.TariffCode</div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <button class="screen-button" type="submit">Перейти на страницу оплаты YooMoney</button>
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Первый период</div>
+                                        <div class="fs-4 fw-semibold">@Model.Offer.PeriodMonths мес.</div>
+                                        <div class="text-secondary">Оплачивается первый полный период нового подключения.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Сервер</div>
+                                        <div class="fs-4 fw-semibold">@Model.Offer.ServerName</div>
+                                        <div class="text-secondary">Выбирается первый незаполненный сервер по текущей локальной модели.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Сумма к оплате</div>
+                                        <div class="fs-4 fw-semibold">@Model.Offer.AmountRub.ToString("0.00", CultureInfo.InvariantCulture) ₽</div>
+                                        <div class="text-secondary">После успешной оплаты будет выполнен вызов `POST /v1/users` в telemt.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form method="post" asp-page-handler="CreatePayment" class="mb-4">
+                            <button class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-semibold" type="submit">Создать заявку на оплату</button>
                         </form>
-                    </section>
-                }
-            </section>
-        }
-    </section>
+
+                        @if (Model.PaymentForm is not null)
+                        {
+                            <div class="card border">
+                                <div class="card-body p-4">
+                                    <div class="text-center mb-4">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Заявка создана</div>
+                                        <h2 class="h3 mb-2">Оплата нового подключения через YooMoney</h2>
+                                        <p class="text-secondary mb-0">
+                                            Метка платежа: @Model.PaymentForm.Label. После оплаты пользователь вернётся на страницу результата
+                                            создания подключения.
+                                        </p>
+                                    </div>
+
+                                    <form method="post" action="@Model.PaymentForm.FormActionUrl" class="d-grid gap-4">
+                                        <input type="hidden" name="receiver" value="@Model.PaymentForm.Receiver" />
+                                        <input type="hidden" name="quickpay-form" value="button" />
+                                        <input type="hidden" name="label" value="@Model.PaymentForm.Label" />
+                                        <input type="hidden" name="sum" value="@Model.PaymentForm.SumRub.ToString("0.00", CultureInfo.InvariantCulture)" />
+                                        <input type="hidden" name="successURL" value="@Model.PaymentForm.SuccessUrl" />
+
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-6">
+                                                <div class="card h-100 border">
+                                                    <div class="card-body">
+                                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Сумма к оплате</div>
+                                                        <div class="fs-4 fw-semibold">@Model.PaymentForm.SumRub.ToString("0.00", CultureInfo.InvariantCulture) ₽</div>
+                                                        <div class="text-secondary">Локальная заявка действует до @Model.PaymentForm.ExpiresAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture).</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-12 col-md-6">
+                                                <div class="card h-100 border">
+                                                    <div class="card-body">
+                                                        <div class="text-uppercase small fw-semibold text-secondary mb-3">Способ оплаты</div>
+                                                        <div class="form-check mb-2">
+                                                            <input class="form-check-input" type="radio" name="paymentType" id="newConnectionPaymentTypePc" value="PC" checked />
+                                                            <label class="form-check-label" for="newConnectionPaymentTypePc">YooMoney</label>
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="radio" name="paymentType" id="newConnectionPaymentTypeAc" value="AC" />
+                                                            <label class="form-check-label" for="newConnectionPaymentTypeAc">Банковская карта</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <button class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-semibold" type="submit">Перейти на страницу оплаты YooMoney</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 </main>

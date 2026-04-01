@@ -18,7 +18,7 @@ public static class AdminAccessAuthenticationDefaults
     /// <summary>
     /// Путь страницы входа администратора.
     /// </summary>
-    public const string LOGIN_PATH = "/Admin/Login";
+    public const string LOGIN_PATH = "/login";
 
     /// <summary>
     /// Путь основной страницы администратора.

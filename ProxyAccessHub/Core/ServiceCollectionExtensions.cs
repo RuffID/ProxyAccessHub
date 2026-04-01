@@ -29,8 +29,8 @@ public static class ServiceCollectionExtensions
             .AddCookie(UserAccessAuthenticationDefaults.AUTHENTICATION_SCHEME, options =>
             {
                 options.Cookie.Name = ".ProxyAccessHub.UserAccess";
-                options.LoginPath = "/User/Login";
-                options.AccessDeniedPath = "/User/Login";
+                options.LoginPath = "/";
+                options.AccessDeniedPath = "/";
                 options.SlidingExpiration = true;
                 options.ExpireTimeSpan = TimeSpan.FromDays(14);
             })

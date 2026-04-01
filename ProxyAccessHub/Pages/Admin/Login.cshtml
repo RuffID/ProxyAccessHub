@@ -1,24 +1,31 @@
-@page
+@page "/login"
 @model ProxyAccessHub.Pages.Admin.LoginModel
 @{
     ViewData["Title"] = "Вход администратора";
 }
 
-<main class="screen-page">
-    <section class="screen-shell" aria-label="Вход администратора">
-        <div class="screen-copy">
-            <p class="screen-eyebrow">Административный вход</p>
-            <h1 class="screen-title">Отдельный вход для управления пользователями и тарифами</h1>
-            <p class="screen-description">
-                Здесь будет пароль администратора из конфигурации и переход к минимальной панели управления пользователями.
-            </p>
-        </div>
+<main class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-md-5">
+                    <h1 class="h3 text-center mb-4">Вход администратора</h1>
 
-        <form class="screen-form" method="post">
-            <label class="screen-label" asp-for="Password"></label>
-            <input class="screen-input" asp-for="Password" autocomplete="current-password" />
-            <span class="screen-hint">Страница подготовлена как стартовая точка базовой административной панели.</span>
-            <button class="screen-button" type="submit">Войти</button>
-        </form>
-    </section>
+                    <form method="post" class="d-grid gap-3">
+                        <div>
+                            <label class="form-label" asp-for="Password"></label>
+                            <input class="form-control form-control-lg" asp-for="Password" autocomplete="current-password" />
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                        {
+                            <div class="alert alert-danger mb-0" role="alert">@Model.ErrorMessage</div>
+                        }
+
+                        <button class="btn btn-dark btn-lg" type="submit">Войти</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </main>

@@ -1,10 +1,16 @@
 @using ProxyAccessHub.Core.Authentication
 @{
+    bool isUserAuthenticated = User.HasClaim(UserAccessAuthenticationDefaults.ACCESS_CLAIM_TYPE, UserAccessAuthenticationDefaults.ACCESS_CLAIM_VALUE);
+    bool isAdminAuthenticated = User.HasClaim(AdminAccessAuthenticationDefaults.ACCESS_CLAIM_TYPE, AdminAccessAuthenticationDefaults.ACCESS_CLAIM_VALUE);
     string? userBadgeText = ViewData["UserBadgeText"] as string;
-    if (string.IsNullOrWhiteSpace(userBadgeText)
-        && User.HasClaim(UserAccessAuthenticationDefaults.ACCESS_CLAIM_TYPE, UserAccessAuthenticationDefaults.ACCESS_CLAIM_VALUE))
+
+    if (string.IsNullOrWhiteSpace(userBadgeText) && isUserAuthenticated)
     {
         userBadgeText = "Вход выполнен";
+    }
+    else if (string.IsNullOrWhiteSpace(userBadgeText) && isAdminAuthenticated)
+    {
+        userBadgeText = "Администратор";
     }
 }
 <!DOCTYPE html>
@@ -13,26 +19,41 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - ProxyAccessHub</title>
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
 </head>
-<body>
-    <header class="app-header">
-        <div class="app-header-shell">
-            <a class="app-brand" asp-page="/Index">ProxyAccessHub</a>
-            <nav class="app-nav" aria-label="Основная навигация">
-                <a class="app-nav-link" asp-page="/User/Login">Пользователь</a>
-                <a class="app-nav-link" asp-page="/User/Renew">Продление</a>
-                <a class="app-nav-link" asp-page="/Admin/Login">Админ</a>
-                <a class="app-nav-link" asp-page="/Admin/Users">Пользователи</a>
-                <a class="app-nav-link" asp-page="/User/NewConnection">Новое подключение</a>
+<body class="bg-body-tertiary">
+    @if (isAdminAuthenticated)
+    {
+        <header class="border-bottom bg-white">
+            <nav class="navbar navbar-expand-lg">
+                <div class="container">
+                    <a class="navbar-brand fw-semibold" asp-page="/Index">ProxyAccessHub</a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Переключить навигацию">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="mainNav">
+                        <div class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <a class="nav-link" asp-page="/Admin/Users">Пользователи</a>
+                            <a class="nav-link" asp-page="/User/NewConnection">Новое подключение</a>
+                            <a class="nav-link" asp-page="/User/Renew">Продление</a>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 ms-lg-3">
+                            <span class="badge rounded-pill text-bg-dark px-3 py-2">@userBadgeText</span>
+                            <form method="post" asp-page="/Index" asp-page-handler="Logout">
+                                <button class="btn btn-outline-dark rounded-pill d-inline-flex align-items-center gap-2 px-3" type="submit">
+                                    <img src="~/icon/door-exit.svg" alt="" width="18" height="18" />
+                                    <span>Выйти</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </nav>
-            @if (!string.IsNullOrWhiteSpace(userBadgeText))
-            {
-                <button class="app-user-badge" type="button">@userBadgeText</button>
-            }
-        </div>
-    </header>
+        </header>
+    }
 
     @RenderBody()
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,7 +1,8 @@
 @page
 @model ProxyAccessHub.Pages.User.RenewModel
+@using System.Globalization
 @{
-    ViewData["Title"] = "Продление подписки";
+    ViewData["Title"] = "Продлить прокси";
 }
 
 @if (Model.LookupResult is not null)
@@ -9,138 +10,136 @@
     ViewData["UserBadgeText"] = Model.LookupResult.TelemtUserId;
 }
 
-<main class="screen-page">
-    <section class="screen-shell" aria-label="Экран продления подписки">
-        <div class="screen-copy">
-            <p class="screen-eyebrow">Продление подписки</p>
-            <h1 class="screen-title">Поиск существующего пользователя для продления доступа</h1>
-            <p class="screen-description">
-                Введите `telemt user id` или точное окончание proxy-ссылки.
-            </p>
-        </div>
+<main class="container py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <h1 class="display-6 mb-3">Продлить прокси</h1>
+                        <p class="text-secondary mb-0">Вставьте ссылку, которая выдавалась при подключении прокси.</p>
+                    </div>
 
-        <form class="screen-form" method="post">
-            <label class="screen-label" asp-for="SearchValue"></label>
-            <input class="screen-input" asp-for="SearchValue" autocomplete="off" />
-            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-            {
-                <span class="screen-hint">@Model.ErrorMessage</span>
-            }
-            else
-            {
-                <span class="screen-hint">Поддерживается telemt id, полный `tg://proxy...` или точное окончание ссылки.</span>
-            }
-            <button class="screen-button" type="submit">Найти пользователя</button>
-        </form>
-
-        @if (Model.LookupResult is not null)
-        {
-            <section class="renew-result" aria-label="Результат поиска пользователя">
-                <div class="renew-result-header">
-                    <p class="screen-eyebrow">Пользователь найден</p>
-                    <h2 class="renew-result-title">@Model.LookupResult.TelemtUserId</h2>
-                    <p class="renew-result-subtitle">Совпадение: @Model.LookupResult.SearchKind</p>
-                </div>
-
-                <div class="renew-result-grid">
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Текущий тариф</span>
-                        <strong class="renew-result-value">@Model.LookupResult.TariffName</strong>
-                        <span class="renew-result-note">Код тарифа: @Model.LookupResult.TariffCode</span>
-                    </article>
-
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Текущий баланс</span>
-                        <strong class="renew-result-value">@Model.LookupResult.BalanceRub.ToString("0.00") ₽</strong>
-                        <span class="renew-result-note">Остаток денег не сгорает и остаётся на балансе.</span>
-                    </article>
-
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Оплачено до</span>
-                        <strong class="renew-result-value">
-                            @(Model.LookupResult.AccessPaidToUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Не оплачено")
-                        </strong>
-                        <span class="renew-result-note">Текущий оплаченный срок подписки пользователя.</span>
-                    </article>
-
-                    <article class="renew-result-card">
-                        <span class="renew-result-label">Сумма следующего периода</span>
-                        <strong class="renew-result-value">@Model.LookupResult.AmountRequiredRub.ToString("0.00") ₽</strong>
-                        <span class="renew-result-note">
-                            @if (Model.LookupResult.IsUnlimited)
-                            {
-                                @:Безлимитный тариф не требует ежемесячного продления.
-                            }
-                            else
-                            {
-                                @:Следующий полный период: @Model.LookupResult.PeriodMonths мес.
-                            }
-                        </span>
-                    </article>
-                </div>
-
-                <article class="renew-result-card renew-result-card-wide">
-                    <span class="renew-result-label">Proxy-ссылка</span>
-                    <strong class="renew-result-value renew-result-link">@Model.LookupResult.ProxyLink</strong>
-                    <span class="renew-result-note">Для оплаты создаётся отдельная локальная заявка с уникальной меткой YooMoney.</span>
-                </article>
-
-                @if (Model.LookupResult.IsUnlimited)
-                {
-                    <button class="screen-button screen-button-disabled" type="button" disabled>Для безлимитного тарифа оплата не требуется</button>
-                }
-                else
-                {
-                    <form method="post" asp-page-handler="CreatePayment">
-                        <input type="hidden" name="userId" value="@Model.LookupResult.UserId" />
-                        <button class="screen-button" type="submit">Перейти к оплате</button>
+                    <form method="get" class="row g-3 align-items-end mb-4">
+                        <div class="col-12 col-lg">
+                            <label class="form-label fw-semibold" asp-for="SearchValue"></label>
+                            <input class="form-control form-control-lg" asp-for="SearchValue" autocomplete="off" />
+                        </div>
+                        <div class="col-12 col-lg-auto">
+                            <button class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-semibold" type="submit">Найти пользователя</button>
+                        </div>
                     </form>
-                }
 
-                @if (Model.PaymentForm is not null)
-                {
-                    <section class="payment-form-shell" aria-label="Форма оплаты ЮMoney">
-                        <div class="renew-result-header">
-                            <p class="screen-eyebrow">Заявка создана</p>
-                            <h2 class="renew-result-title">Оплата продления через ЮMoney</h2>
-                            <p class="renew-result-subtitle">
-                                Метка платежа: @Model.PaymentForm.Label. Заявка действует до
-                                @Model.PaymentForm.ExpiresAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm").
-                            </p>
+                    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger mb-4" role="alert">@Model.ErrorMessage</div>
+                    }
+
+                    @if (Model.LookupResult is not null)
+                    {
+                        <div class="mb-4 text-start">
+                            <div class="small fw-semibold text-secondary mb-2">id: @Model.LookupResult.TelemtUserId</div>
                         </div>
 
-                        <form class="payment-form" method="post" action="@Model.PaymentForm.FormActionUrl">
-                            <input type="hidden" name="receiver" value="@Model.PaymentForm.Receiver" />
-                            <input type="hidden" name="quickpay-form" value="button" />
-                            <input type="hidden" name="label" value="@Model.PaymentForm.Label" />
-                            <input type="hidden" name="sum" value="@Model.PaymentForm.SumRub.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
-                            <input type="hidden" name="successURL" value="@Model.PaymentForm.SuccessUrl" />
-
-                            <div class="payment-form-grid">
-                                <article class="renew-result-card">
-                                    <span class="renew-result-label">Сумма к оплате</span>
-                                    <strong class="renew-result-value">@Model.PaymentForm.SumRub.ToString("0.00") ₽</strong>
-                                    <span class="renew-result-note">Сумма сформирована на стороне сайта по тарифу пользователя.</span>
-                                </article>
-
-                                <article class="renew-result-card">
-                                    <span class="renew-result-label">Способ оплаты</span>
-                                    <label class="payment-method-option">
-                                        <input type="radio" name="paymentType" value="PC" checked />
-                                        <span>ЮMoney</span>
-                                    </label>
-                                    <label class="payment-method-option">
-                                        <input type="radio" name="paymentType" value="AC" />
-                                        <span>Банковская карта</span>
-                                    </label>
-                                </article>
+                        <div class="row g-3 mb-4 justify-content-center">
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Текущий баланс</div>
+                                        <div class="fs-4 fw-semibold">@Model.LookupResult.BalanceRub.ToString("0.00", CultureInfo.InvariantCulture) ₽</div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <button class="screen-button" type="submit">Перейти на страницу оплаты ЮMoney</button>
-                        </form>
-                    </section>
-                }
-            </section>
-        }
-    </section>
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Оплачено до</div>
+                                        <div class="fs-4 fw-semibold">@(Model.LookupResult.AccessPaidToUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture) ?? "Не оплачено")</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border">
+                                    <div class="card-body">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">К оплате</div>
+                                        <div class="fs-4 fw-semibold">@Model.LookupResult.AmountRequiredRub.ToString("0.00", CultureInfo.InvariantCulture) ₽</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (Model.LookupResult.IsUnlimited)
+                        {
+                            <button class="btn btn-secondary btn-lg rounded-pill px-4 fw-semibold" type="button" disabled>Для безлимитного тарифа оплата не требуется</button>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="CreatePayment" class="mb-4">
+                                <input type="hidden" name="userId" value="@Model.LookupResult.UserId" />
+                                <input type="hidden" name="preservedSearchValue" value="@Model.SearchValue" />
+                                <button class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-semibold" type="submit">Перейти к оплате в YooMoney</button>
+                            </form>
+                        }
+
+                        @if (Model.PaymentForm is not null)
+                        {
+                            <div class="card border">
+                                <div class="card-body p-4">
+                                    <div class="text-center mb-4">
+                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Заявка создана</div>
+                                        <h2 class="h3 mb-2">Оплата продления через ЮMoney</h2>
+                                        <p class="text-secondary mb-0">
+                                            Метка платежа: @Model.PaymentForm.Label. Заявка действует до
+                                            @Model.PaymentForm.ExpiresAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture).
+                                        </p>
+                                    </div>
+
+                                    <form method="post" action="@Model.PaymentForm.FormActionUrl" class="d-grid gap-4">
+                                        <input type="hidden" name="receiver" value="@Model.PaymentForm.Receiver" />
+                                        <input type="hidden" name="quickpay-form" value="button" />
+                                        <input type="hidden" name="label" value="@Model.PaymentForm.Label" />
+                                        <input type="hidden" name="sum" value="@Model.PaymentForm.SumRub.ToString("0.00", CultureInfo.InvariantCulture)" />
+                                        <input type="hidden" name="successURL" value="@Model.PaymentForm.SuccessUrl" />
+
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-6">
+                                                <div class="card h-100 border">
+                                                    <div class="card-body">
+                                                        <div class="text-uppercase small fw-semibold text-secondary mb-2">Сумма к оплате</div>
+                                                        <div class="fs-4 fw-semibold">@Model.PaymentForm.SumRub.ToString("0.00", CultureInfo.InvariantCulture) ₽</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-12 col-md-6">
+                                                <div class="card h-100 border">
+                                                    <div class="card-body">
+                                                        <div class="text-uppercase small fw-semibold text-secondary mb-3">Способ оплаты</div>
+                                                        <div class="form-check mb-2">
+                                                            <input class="form-check-input" type="radio" name="paymentType" id="paymentTypePc" value="PC" checked />
+                                                            <label class="form-check-label" for="paymentTypePc">ЮMoney</label>
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="radio" name="paymentType" id="paymentTypeAc" value="AC" />
+                                                            <label class="form-check-label" for="paymentTypeAc">Банковская карта</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <button class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-semibold" type="submit">Перейти на страницу оплаты ЮMoney</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 </main>

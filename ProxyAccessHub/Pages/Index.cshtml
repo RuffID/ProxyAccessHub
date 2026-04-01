@@ -1,30 +1,54 @@
 @page
 @model ProxyAccessHub.Pages.IndexModel
 @{
-    ViewData["Title"] = "ProxyAccessHub";
+    Layout = null;
 }
-
-<main class="landing-page">
-    <section class="landing-shell" aria-label="Стартовый экран ProxyAccessHub">
-        <div class="landing-copy">
-            <p class="landing-eyebrow">ProxyAccessHub</p>
-            <h1 class="landing-title">Первый этап каркаса для пользовательского и административного входа</h1>
-            <p class="landing-description">
-                Здесь начинается минимально доступный сайт: вход обычного пользователя, будущий сценарий продления подписки,
-                отдельный вход администратора и базовая структура под дальнейшее развитие проекта.
-            </p>
-        </div>
-
-        <div class="landing-actions">
-            <a class="landing-link-card" asp-page="/User/Login">
-                <span class="landing-link-title">Вход пользователя</span>
-                <span class="landing-link-text">Общий пароль, поиск подписки и дальнейший переход к оплате продления.</span>
-            </a>
-
-            <a class="landing-link-card" asp-page="/Admin/Login">
-                <span class="landing-link-title">Вход администратора</span>
-                <span class="landing-link-text">Отдельный вход, список пользователей и будущая настройка тарифов.</span>
-            </a>
-        </div>
-    </section>
-</main>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Вход</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-white text-black">
+    <main class="min-vh-100 d-flex align-items-center justify-content-center px-3">
+        @if (Model.IsUserAuthenticated)
+        {
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-12 col-xl-10">
+                        <div class="text-center mb-4 mb-md-5">
+                            <p class="fs-5 mb-0">
+                                Если у вас уже есть прокси, выберите <strong>«Продлить прокси»</strong>.
+                                Если вы подключаетесь впервые и ссылки ещё не было, выберите <strong>«Получить ссылку на прокси»</strong>.
+                            </p>
+                        </div>
+                        <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-4 gap-md-5">
+                            <a class="btn btn-outline-primary btn-lg rounded-pill px-5 py-3 fw-semibold" asp-page="/User/Renew">Продлить прокси</a>
+                            <a class="btn btn-outline-primary btn-lg rounded-pill px-5 py-3 fw-semibold" asp-page="/User/NewConnection">Получить ссылку на прокси</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="w-100" style="max-width: 460px;">
+                <form method="post" class="d-flex flex-column gap-3">
+                    <label class="form-label text-center fs-4 mb-0" asp-for="Password"></label>
+                    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger mb-0" role="alert">@Model.ErrorMessage</div>
+                    }
+                    <input class="form-control form-control-lg"
+                           asp-for="Password"
+                           autocomplete="current-password"
+                           autofocus />
+                    <button class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-semibold align-self-center" type="submit">Войти</button>
+                </form>
+            </div>
+        }
+    </main>
+</body>
+</html>
