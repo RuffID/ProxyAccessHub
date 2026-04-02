@@ -1,22 +1,41 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using ProxyAccessHub.Application.Abstractions.Payments;
 using ProxyAccessHub.Application.Models.Payments;
 
-namespace ProxyAccessHub.Pages.YooMoney;
+namespace ProxyAccessHub.Controllers;
 
 /// <summary>
-/// Endpoint приёма HTTP-уведомлений YooMoney.
+/// Контроллер приёма HTTP-уведомлений YooMoney.
 /// </summary>
-[IgnoreAntiforgeryToken]
-public class NotificationModel(IYooMoneyNotificationService yooMoneyNotificationService) : PageModel
+[ApiController]
+[AllowAnonymous]
+[Route("yoomoney/notification")]
+public class YooMoneyNotificationController(
+    IYooMoneyNotificationService yooMoneyNotificationService,
+    ILogger<YooMoneyNotificationController> logger) : ControllerBase
 {
     /// <summary>
     /// Принимает входящее уведомление YooMoney.
     /// </summary>
-    public async Task<IActionResult> OnPostAsync()
+    [HttpPost]
+    public async Task<IActionResult> PostAsync()
     {
         IFormCollection form = await Request.ReadFormAsync(HttpContext.RequestAborted);
+        bool isTestNotification = IsTestNotification(form);
+
+        logger.LogInformation(
+            "Получено уведомление YooMoney: Test={IsTestNotification}, NotificationType={NotificationType}, OperationId={OperationId}, Label={Label}, Amount={Amount}",
+            isTestNotification,
+            GetOptionalValue(form, "notification_type"),
+            GetOptionalValue(form, "operation_id"),
+            GetOptionalValue(form, "label"),
+            GetOptionalValue(form, "amount"));
+
+        if (isTestNotification)
+        {
+            return Ok();
+        }
 
         YooMoneyNotificationModel notification = new(
             GetRequiredValue(form, "notification_type"),
@@ -32,7 +51,7 @@ public class NotificationModel(IYooMoneyNotificationService yooMoneyNotification
             GetOptionalValue(form, "unaccepted"));
 
         await yooMoneyNotificationService.ProcessAsync(notification, HttpContext.RequestAborted);
-        return new OkResult();
+        return Ok();
     }
 
     private static string GetRequiredValue(IFormCollection form, string key)
@@ -62,5 +81,11 @@ public class NotificationModel(IYooMoneyNotificationService yooMoneyNotification
         }
 
         return parsedValue;
+    }
+
+    private static bool IsTestNotification(IFormCollection form)
+    {
+        string value = GetOptionalValue(form, "test_notification");
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 }

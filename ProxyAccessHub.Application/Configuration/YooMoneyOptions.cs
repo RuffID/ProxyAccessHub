@@ -24,9 +24,4 @@ public sealed class YooMoneyOptions
     /// Адрес возврата после успешной оплаты.
     /// </summary>
     public string SuccessUrl { get; init; } = string.Empty;
-
-    /// <summary>
-    /// Адрес обработчика уведомлений.
-    /// </summary>
-    public string NotificationUrl { get; init; } = string.Empty;
 }

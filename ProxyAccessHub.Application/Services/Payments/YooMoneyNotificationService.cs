@@ -1,11 +1,11 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ProxyAccessHub.Application.Abstractions.Payments;
 using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Application.Abstractions.Subscriptions;
-using ProxyAccessHub.Application.Abstractions.Tariffs;
 using ProxyAccessHub.Application.Abstractions.Users;
 using ProxyAccessHub.Application.Configuration;
 using ProxyAccessHub.Application.Models.Payments;
@@ -24,7 +24,8 @@ public class YooMoneyNotificationService(
     IProxyAccessHubUnitOfWork unitOfWork,
     IUserSubscriptionRenewalService userSubscriptionRenewalService,
     IUserConnectionCreationService userConnectionCreationService,
-    IOptions<YooMoneyOptions> yooMoneyOptions) : IYooMoneyNotificationService
+    IOptions<YooMoneyOptions> yooMoneyOptions,
+    ILogger<YooMoneyNotificationService> logger) : IYooMoneyNotificationService
 {
     private const string EXPECTED_CURRENCY = "643";
 
@@ -37,6 +38,11 @@ public class YooMoneyNotificationService(
         Payment? existingPayment = await unitOfWork.Payments.GetByProviderOperationIdAsync(notification.OperationId, cancellationToken);
         if (existingPayment is not null)
         {
+            logger.LogInformation(
+                "Повторное уведомление YooMoney пропущено: OperationId={OperationId}, Label={Label}, Amount={Amount}",
+                notification.OperationId,
+                notification.Label,
+                notification.Amount);
             return;
         }
 
@@ -62,15 +68,34 @@ public class YooMoneyNotificationService(
             if (PendingConnectionUserConventions.IsPending(user))
             {
                 await ApplyNewConnectionPaymentAsync(paymentRequest, user, notification, receivedAtUtc, cancellationToken);
+                logger.LogInformation(
+                    "Платёж YooMoney применён к новому подключению: OperationId={OperationId}, UserId={UserId}, Label={Label}, Amount={Amount}",
+                    notification.OperationId,
+                    user.Id,
+                    notification.Label,
+                    notification.Amount);
                 return;
             }
 
             await ApplyRenewalPaymentAsync(paymentRequest, user, notification, receivedAtUtc, cancellationToken);
+            logger.LogInformation(
+                "Платёж YooMoney применён к продлению: OperationId={OperationId}, UserId={UserId}, Label={Label}, Amount={Amount}",
+                notification.OperationId,
+                user.Id,
+                notification.Label,
+                notification.Amount);
             return;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             await PersistManualHandlingAsync(paymentRequest, user, notification, receivedAtUtc, ex.Message, cancellationToken);
+            logger.LogWarning(
+                "Платёж YooMoney отправлен на ручную обработку: OperationId={OperationId}, UserId={UserId}, Label={Label}, Amount={Amount}, Reason={Reason}",
+                notification.OperationId,
+                user.Id,
+                notification.Label,
+                notification.Amount,
+                ex.Message);
             return;
         }
     }

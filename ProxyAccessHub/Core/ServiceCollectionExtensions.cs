@@ -43,6 +43,7 @@ public static class ServiceCollectionExtensions
                 options.ExpireTimeSpan = TimeSpan.FromDays(14);
             });
         services.AddAuthorization();
+        services.AddControllers();
         services.AddRazorPages();
 
         return services;
