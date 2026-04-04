@@ -59,7 +59,7 @@ public class SubscriptionRepository(
         {
             Id = subscription.Id,
             UserId = subscription.UserId,
-            TariffCode = subscription.TariffCode,
+            TariffId = subscription.TariffId,
             StartedAtUtc = subscription.StartedAtUtc,
             PaidToUtc = subscription.PaidToUtc,
             IsUnlimited = subscription.IsUnlimited
@@ -71,7 +71,7 @@ public class SubscriptionRepository(
         return new Subscription(
             entity.Id,
             entity.UserId,
-            entity.TariffCode,
+            entity.TariffId,
             entity.StartedAtUtc,
             entity.PaidToUtc,
             entity.IsUnlimited);
@@ -79,9 +79,9 @@ public class SubscriptionRepository(
 
     private static void ValidateSubscription(Subscription subscription)
     {
-        if (string.IsNullOrWhiteSpace(subscription.TariffCode))
+        if (subscription.TariffId == Guid.Empty)
         {
-            throw new InvalidOperationException("Код тарифа подписки не задан.");
+            throw new InvalidOperationException("Идентификатор тарифа подписки не задан.");
         }
 
         if (!subscription.IsUnlimited && subscription.PaidToUtc is null)

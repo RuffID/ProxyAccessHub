@@ -1,5 +1,6 @@
 using ProxyAccessHub.Application.Abstractions.Tariffs;
 using ProxyAccessHub.Application.Models.Tariffs;
+using ProxyAccessHub.Domain.Entities;
 
 namespace ProxyAccessHub.Application.Services.Tariffs;
 
@@ -9,7 +10,7 @@ namespace ProxyAccessHub.Application.Services.Tariffs;
 public sealed class TariffPriceResolver : ITariffPriceResolver
 {
     /// <inheritdoc />
-    public decimal ResolvePeriodPrice(TariffPlan tariff, TariffUserPriceOverride? priceOverride)
+    public decimal ResolvePeriodPrice(TariffDefinition tariff, TariffUserPriceOverride? priceOverride)
     {
         if (!tariff.RequiresRenewal)
         {
@@ -23,14 +24,14 @@ public sealed class TariffPriceResolver : ITariffPriceResolver
 
         if (priceOverride.CustomPeriodPriceRub is not null && priceOverride.DiscountPercent is not null)
         {
-            throw new InvalidOperationException($"Для тарифа '{tariff.Code}' нельзя одновременно задать фиксированную цену и скидку.");
+            throw new InvalidOperationException($"Для тарифа '{tariff.Id}' нельзя одновременно задать фиксированную цену и скидку.");
         }
 
         if (priceOverride.CustomPeriodPriceRub is decimal customPeriodPriceRub)
         {
             if (customPeriodPriceRub <= 0m)
             {
-                throw new InvalidOperationException($"Для тарифа '{tariff.Code}' индивидуальная цена периода должна быть больше нуля.");
+                throw new InvalidOperationException($"Для тарифа '{tariff.Id}' индивидуальная цена периода должна быть больше нуля.");
             }
 
             return decimal.Round(customPeriodPriceRub, 2, MidpointRounding.AwayFromZero);
@@ -40,14 +41,14 @@ public sealed class TariffPriceResolver : ITariffPriceResolver
         {
             if (discountPercent <= 0m || discountPercent >= 100m)
             {
-                throw new InvalidOperationException($"Для тарифа '{tariff.Code}' скидка должна быть больше нуля и меньше ста процентов.");
+                throw new InvalidOperationException($"Для тарифа '{tariff.Id}' скидка должна быть больше нуля и меньше ста процентов.");
             }
 
             decimal discountedPrice = tariff.PeriodPriceRub * (100m - discountPercent) / 100m;
 
             if (discountedPrice <= 0m)
             {
-                throw new InvalidOperationException($"Для тарифа '{tariff.Code}' итоговая цена периода должна быть больше нуля.");
+                throw new InvalidOperationException($"Для тарифа '{tariff.Id}' итоговая цена периода должна быть больше нуля.");
             }
 
             return decimal.Round(discountedPrice, 2, MidpointRounding.AwayFromZero);

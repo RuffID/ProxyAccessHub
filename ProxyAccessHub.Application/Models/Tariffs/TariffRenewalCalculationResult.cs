@@ -3,7 +3,7 @@ namespace ProxyAccessHub.Application.Models.Tariffs;
 /// <summary>
 /// Результат расчёта продления тарифа.
 /// </summary>
-/// <param name="TariffCode">Код тарифа, для которого выполнен расчёт.</param>
+/// <param name="TariffId">Идентификатор тарифа, для которого выполнен расчёт.</param>
 /// <param name="EffectivePeriodPriceRub">Эффективная цена полного периода в рублях.</param>
 /// <param name="PurchasedPeriods">Количество полных периодов, доступных к продлению.</param>
 /// <param name="ChargedAmountRub">Сумма, списываемая за продление.</param>
@@ -12,7 +12,7 @@ namespace ProxyAccessHub.Application.Models.Tariffs;
 /// <param name="AccessPaidToUtc">Дата оплаченного доступа после расчёта в UTC.</param>
 /// <param name="RequiresRenewal">Признак обязательного продления по периодам.</param>
 public sealed record TariffRenewalCalculationResult(
-    string TariffCode,
+    Guid TariffId,
     decimal EffectivePeriodPriceRub,
     int PurchasedPeriods,
     decimal ChargedAmountRub,

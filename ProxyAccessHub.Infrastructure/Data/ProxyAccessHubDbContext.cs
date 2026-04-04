@@ -51,14 +51,15 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
             builder.Property(entity => entity.Code).HasMaxLength(64).IsRequired();
             builder.Property(entity => entity.Name).HasMaxLength(256).IsRequired();
             builder.Property(entity => entity.Host).HasMaxLength(256).IsRequired();
+            builder.Property(entity => entity.ApiPort).IsRequired();
+            builder.Property(entity => entity.ApiBearerToken).HasMaxLength(1024).IsRequired();
             builder.HasIndex(entity => entity.Code).IsUnique();
         });
 
         modelBuilder.Entity<TariffDefinitionEntity>(builder =>
         {
             builder.ToTable("Tariffs");
-            builder.HasKey(entity => entity.Code);
-            builder.Property(entity => entity.Code).HasMaxLength(64);
+            builder.HasKey(entity => entity.Id);
             builder.Property(entity => entity.Name).HasMaxLength(256).IsRequired();
             builder.Property(entity => entity.PeriodPriceRub).HasPrecision(18, 2);
         });
@@ -70,7 +71,6 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
             builder.Property(entity => entity.TelemtUserId).HasMaxLength(128).IsRequired();
             builder.Property(entity => entity.ProxyLink).HasMaxLength(2048).IsRequired();
             builder.Property(entity => entity.ProxyLinkLookupKey).HasMaxLength(512).IsRequired();
-            builder.Property(entity => entity.TariffCode).HasMaxLength(64).IsRequired();
             builder.Property(entity => entity.CustomPeriodPriceRub).HasPrecision(18, 2);
             builder.Property(entity => entity.DiscountPercent).HasPrecision(5, 2);
             builder.Property(entity => entity.BalanceRub).HasPrecision(18, 2);
@@ -103,7 +103,6 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
         {
             builder.ToTable("Subscriptions");
             builder.HasKey(entity => entity.Id);
-            builder.Property(entity => entity.TariffCode).HasMaxLength(64).IsRequired();
             builder.HasIndex(entity => entity.UserId).IsUnique();
         });
     }

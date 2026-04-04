@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -12,137 +13,84 @@ namespace ProxyAccessHub.Pages.Admin;
 /// </summary>
 [CookieAuthorize]
 [Authorize(AuthenticationSchemes = AdminAccessAuthenticationDefaults.AUTHENTICATION_SCHEME)]
-public sealed class UsersModel : PageModel
+public sealed class UsersModel(IAdminUserManagementService adminUserManagementService) : PageModel
 {
-    private readonly IAdminUserManagementService adminUserManagementService;
-
     /// <summary>
-    /// Инициализирует страницу списка пользователей администратора.
+    /// Возвращает данные страницы пользователей для AJAX-интерфейса.
     /// </summary>
-    /// <param name="adminUserManagementService">Сервис минимального управления пользователями из админки.</param>
-    public UsersModel(IAdminUserManagementService adminUserManagementService)
+    /// <returns>JSON с данными пользователей и статусом синхронизации.</returns>
+    public async Task<IActionResult> OnGetDataAsync()
     {
-        this.adminUserManagementService = adminUserManagementService;
+        AdminUsersPageData pageData = await adminUserManagementService.GetPageDataAsync(false, HttpContext.RequestAborted);
+        return new JsonResult(pageData)
+        {
+            StatusCode = StatusCodes.Status200OK
+        };
     }
 
     /// <summary>
-    /// Данные страницы пользователей для отображения в админке.
-    /// </summary>
-    public AdminUsersPageData PageData { get; private set; } = new(
-        [],
-        [],
-        new AdminTelemtSyncStatus(
-            "Ожидание синхронизации",
-            "Фоновая синхронизация telemt ещё не выполнялась.",
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null));
-
-    /// <summary>
-    /// Показывает только пользователей с активной ручной обработкой.
-    /// </summary>
-    [BindProperty(SupportsGet = true)]
-    public bool OnlyManualHandling { get; set; }
-
-    /// <summary>
-    /// Сообщение об успешном обновлении пользователя.
-    /// </summary>
-    public string StatusMessage { get; private set; } = string.Empty;
-
-    /// <summary>
-    /// Сообщение об ошибке обновления пользователя.
-    /// </summary>
-    public string ErrorMessage { get; private set; } = string.Empty;
-
-    /// <summary>
-    /// Обрабатывает открытие страницы.
-    /// </summary>
-    public async Task OnGetAsync()
-    {
-        PageData = await adminUserManagementService.GetPageDataAsync(OnlyManualHandling, HttpContext.RequestAborted);
-    }
-
-    /// <summary>
-    /// Обновляет тариф пользователя и индивидуальные настройки цены.
+    /// Обновляет индивидуальную цену периода для пользователя.
     /// </summary>
     /// <param name="userId">Локальный идентификатор пользователя.</param>
-    /// <param name="tariffCode">Код выбранного тарифа.</param>
-    /// <param name="customPeriodPriceRub">Индивидуальная цена периода в рублях.</param>
-    /// <param name="discountPercent">Индивидуальная скидка в процентах.</param>
-    /// <returns>Текущий результат обработки запроса.</returns>
-    public async Task<IActionResult> OnPostUpdateAsync(
-        Guid userId,
-        string tariffCode,
-        decimal? customPeriodPriceRub,
-        decimal? discountPercent,
-        bool onlyManualHandling)
+    /// <param name="priceRub">Новое значение цены периода в рублях.</param>
+    /// <returns>JSON-результат операции.</returns>
+    public async Task<IActionResult> OnPostUpdateTariffPriceAsync(Guid userId, string priceRub)
     {
-        OnlyManualHandling = onlyManualHandling;
-
-        if (!ModelState.IsValid)
+        if (!decimal.TryParse(priceRub, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal parsedPriceRub))
         {
-            ErrorMessage = GetModelStateErrorMessage();
-            PageData = await adminUserManagementService.GetPageDataAsync(OnlyManualHandling, HttpContext.RequestAborted);
-            return Page();
+            return CreateErrorResult(StatusCodes.Status400BadRequest, "Цена тарифа имеет неверный числовой формат.");
         }
 
         try
         {
-            await adminUserManagementService.UpdateUserTariffAsync(
-                userId,
-                tariffCode,
-                customPeriodPriceRub,
-                discountPercent,
-                HttpContext.RequestAborted);
-
-            StatusMessage = "Настройки пользователя сохранены.";
+            await adminUserManagementService.UpdateUserTariffPriceAsync(userId, parsedPriceRub, HttpContext.RequestAborted);
+            return CreateSuccessResult();
         }
         catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
         {
-            ErrorMessage = ex.Message;
+            return CreateErrorResult(StatusCodes.Status400BadRequest, ex.Message);
         }
-
-        PageData = await adminUserManagementService.GetPageDataAsync(OnlyManualHandling, HttpContext.RequestAborted);
-        return Page();
     }
 
     /// <summary>
-    /// Помечает ручную обработку пользователя как завершённую.
+    /// Обновляет назначенный пользователю тариф.
     /// </summary>
     /// <param name="userId">Локальный идентификатор пользователя.</param>
-    /// <param name="onlyManualHandling">Признак фильтрации только проблемных кейсов.</param>
-    /// <returns>Текущий результат обработки запроса.</returns>
-    public async Task<IActionResult> OnPostCompleteManualHandlingAsync(Guid userId, bool onlyManualHandling)
+    /// <param name="tariffId">Идентификатор нового тарифа.</param>
+    /// <returns>JSON-результат операции.</returns>
+    public async Task<IActionResult> OnPostUpdateTariffAsync(Guid userId, Guid tariffId)
     {
-        OnlyManualHandling = onlyManualHandling;
-
         try
         {
-            await adminUserManagementService.CompleteManualHandlingAsync(userId, HttpContext.RequestAborted);
-            StatusMessage = "Ручная обработка пользователя отмечена как завершённая.";
+            await adminUserManagementService.UpdateUserTariffAsync(userId, tariffId, HttpContext.RequestAborted);
+            return CreateSuccessResult();
         }
         catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
         {
-            ErrorMessage = ex.Message;
+            return CreateErrorResult(StatusCodes.Status400BadRequest, ex.Message);
         }
-
-        PageData = await adminUserManagementService.GetPageDataAsync(OnlyManualHandling, HttpContext.RequestAborted);
-        return Page();
     }
 
-    private string GetModelStateErrorMessage()
+    private static JsonResult CreateSuccessResult()
     {
-        string? errorMessage = ModelState.Values
-            .SelectMany(entry => entry.Errors)
-            .Select(error => error.ErrorMessage)
-            .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+        return new JsonResult(new
+        {
+            success = true
+        })
+        {
+            StatusCode = StatusCodes.Status200OK
+        };
+    }
 
-        return string.IsNullOrWhiteSpace(errorMessage)
-            ? "Проверьте корректность введённых значений."
-            : errorMessage;
+    private static JsonResult CreateErrorResult(int statusCode, string message)
+    {
+        return new JsonResult(new
+        {
+            success = false,
+            message
+        })
+        {
+            StatusCode = statusCode
+        };
     }
 }

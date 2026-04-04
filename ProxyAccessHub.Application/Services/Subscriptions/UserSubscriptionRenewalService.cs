@@ -1,3 +1,4 @@
+using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Application.Abstractions.Subscriptions;
 using ProxyAccessHub.Application.Abstractions.Tariffs;
 using ProxyAccessHub.Application.Models.Subscriptions;
@@ -10,22 +11,27 @@ namespace ProxyAccessHub.Application.Services.Subscriptions;
 /// <summary>
 /// Реализует бизнес-логику продления подписки после поступления платежа.
 /// </summary>
-public class UserSubscriptionRenewalService(ITariffCatalog tariffCatalog, ITariffRenewalCalculator tariffRenewalCalculator) : IUserSubscriptionRenewalService
+public class UserSubscriptionRenewalService(
+    IProxyAccessHubUnitOfWork unitOfWork,
+    ITariffRenewalCalculator tariffRenewalCalculator) : IUserSubscriptionRenewalService
 {
     /// <inheritdoc />
-    public UserSubscriptionRenewalResult Apply(
+    public async Task<UserSubscriptionRenewalResult> ApplyAsync(
         ProxyUser user,
         Subscription? currentSubscription,
         decimal paymentAmountRub,
-        DateTimeOffset calculatedAtUtc)
+        DateTimeOffset calculatedAtUtc,
+        CancellationToken cancellationToken = default)
     {
         if (paymentAmountRub <= 0m)
         {
             throw new InvalidOperationException("Сумма входящего платежа должна быть больше нуля.");
         }
 
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
+
         decimal updatedBalanceRub = user.BalanceRub + paymentAmountRub;
-        TariffPlan tariff = tariffCatalog.GetRequired(user.TariffCode);
         TariffRenewalCalculationResult calculation = tariffRenewalCalculator.Calculate(
             new TariffRenewalCalculationRequest(
                 tariff,
@@ -62,7 +68,7 @@ public class UserSubscriptionRenewalService(ITariffCatalog tariffCatalog, ITarif
             return new Subscription(
                 Guid.NewGuid(),
                 updatedUser.Id,
-                updatedUser.TariffCode,
+                updatedUser.TariffId,
                 startedAtUtc,
                 updatedUser.AccessPaidToUtc,
                 updatedUser.IsUnlimited);
@@ -70,7 +76,7 @@ public class UserSubscriptionRenewalService(ITariffCatalog tariffCatalog, ITarif
 
         return currentSubscription with
         {
-            TariffCode = updatedUser.TariffCode,
+            TariffId = updatedUser.TariffId,
             PaidToUtc = updatedUser.AccessPaidToUtc,
             IsUnlimited = updatedUser.IsUnlimited
         };

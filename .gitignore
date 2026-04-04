@@ -11,6 +11,7 @@
 *.sln.docstates
 ProxyAccessHub/Config/config.json
 ProxyAccessHub/keys-windows
+ProxyAccessHub\.codex-build-temp
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

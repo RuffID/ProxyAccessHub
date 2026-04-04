@@ -15,19 +15,27 @@ public interface IAdminUserManagementService
     Task<AdminUsersPageData> GetPageDataAsync(bool onlyManualHandling, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Обновляет тариф пользователя и его индивидуальные настройки цены.
+    /// Обновляет индивидуальную цену периода для пользователя.
     /// </summary>
     /// <param name="userId">Локальный идентификатор пользователя.</param>
-    /// <param name="tariffCode">Код нового тарифа.</param>
-    /// <param name="customPeriodPriceRub">Индивидуальная фиксированная цена периода в рублях.</param>
-    /// <param name="discountPercent">Индивидуальная скидка в процентах.</param>
+    /// <param name="customPeriodPriceRub">Индивидуальная цена периода в рублях.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Задача завершения операции.</returns>
+    Task UpdateUserTariffPriceAsync(
+        Guid userId,
+        decimal customPeriodPriceRub,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Обновляет назначенный тариф пользователя.
+    /// </summary>
+    /// <param name="userId">Локальный идентификатор пользователя.</param>
+    /// <param name="tariffId">Идентификатор нового тарифа.</param>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Задача завершения операции.</returns>
     Task UpdateUserTariffAsync(
         Guid userId,
-        string tariffCode,
-        decimal? customPeriodPriceRub,
-        decimal? discountPercent,
+        Guid tariffId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

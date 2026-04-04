@@ -11,11 +11,10 @@ using ProxyAccessHub.Domain.Enums;
 namespace ProxyAccessHub.Application.Services.Payments;
 
 /// <summary>
-/// Создаёт локальную заявку на оплату продления и данные формы ЮMoney.
+/// Создаёт локальную заявку на оплату продления и данные формы YooMoney.
 /// </summary>
 public class UserPaymentRequestService(
     IProxyAccessHubUnitOfWork unitOfWork,
-    ITariffCatalog tariffCatalog,
     ITariffPriceResolver tariffPriceResolver,
     IOptions<ProxyAccessHubOptions> proxyAccessHubOptions,
     IOptions<YooMoneyOptions> yooMoneyOptions) : IUserPaymentRequestService
@@ -28,7 +27,9 @@ public class UserPaymentRequestService(
         ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("Пользователь для оплаты не найден.");
 
-        TariffPlan tariff = tariffCatalog.GetRequired(user.TariffCode);
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
+
         if (!tariff.RequiresRenewal || tariff.IsUnlimited || user.IsUnlimited)
         {
             throw new InvalidOperationException("Для безлимитного тарифа онлайн-оплата продления не требуется.");
@@ -52,12 +53,12 @@ public class UserPaymentRequestService(
 
         if (string.IsNullOrWhiteSpace(yooMoneyOptions.Value.Receiver))
         {
-            throw new InvalidOperationException("В конфигурации ЮMoney не задан номер кошелька получателя.");
+            throw new InvalidOperationException("В конфигурации YooMoney не задан номер кошелька получателя.");
         }
 
         if (string.IsNullOrWhiteSpace(yooMoneyOptions.Value.SuccessUrl))
         {
-            throw new InvalidOperationException("В конфигурации ЮMoney не задан URL возврата после оплаты.");
+            throw new InvalidOperationException("В конфигурации YooMoney не задан URL возврата после оплаты.");
         }
 
         if (!Uri.TryCreate(yooMoneyOptions.Value.SuccessUrl, UriKind.Absolute, out _))
@@ -66,7 +67,6 @@ public class UserPaymentRequestService(
         }
 
         DateTimeOffset createdAtUtc = DateTimeOffset.UtcNow;
-
         PaymentRequest? activePaymentRequest = await unitOfWork.PaymentRequests.GetActivePendingByUserIdAsync(user.Id, createdAtUtc, cancellationToken);
 
         if (activePaymentRequest is not null)

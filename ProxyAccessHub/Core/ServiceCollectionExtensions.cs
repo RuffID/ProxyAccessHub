@@ -105,10 +105,6 @@ public static class ServiceCollectionExtensions
             configuration.GetSection(YooMoneyOptions.SECTION_NAME));
         services.Configure<TelemtOptions>(
             configuration.GetSection(TelemtOptions.SECTION_NAME));
-        services.Configure<TariffCatalogOptions>(
-            configuration.GetSection(TariffCatalogOptions.SECTION_NAME));
-        services.Configure<ProxyServerPoolOptions>(
-            configuration.GetSection(ProxyServerPoolOptions.SECTION_NAME));
 
         return services;
     }

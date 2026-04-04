@@ -19,7 +19,7 @@ public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceReso
         if (!request.Tariff.RequiresRenewal)
         {
             return new TariffRenewalCalculationResult(
-                request.Tariff.Code,
+                request.Tariff.Id,
                 0m,
                 0,
                 0m,
@@ -33,7 +33,7 @@ public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceReso
 
         if (effectivePeriodPriceRub <= 0m)
         {
-            throw new InvalidOperationException($"Для тарифа '{request.Tariff.Code}' цена периода должна быть больше нуля.");
+            throw new InvalidOperationException($"Для тарифа '{request.Tariff.Id}' цена периода должна быть больше нуля.");
         }
 
         int purchasedPeriods = decimal.ToInt32(decimal.Floor(request.BalanceRub / effectivePeriodPriceRub));
@@ -48,7 +48,7 @@ public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceReso
         if (purchasedPeriods == 0)
         {
             return new TariffRenewalCalculationResult(
-                request.Tariff.Code,
+                request.Tariff.Id,
                 effectivePeriodPriceRub,
                 0,
                 0m,
@@ -64,7 +64,7 @@ public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceReso
         DateTimeOffset newAccessPaidToUtc = renewalAppliedFromUtc.AddMonths(purchasedPeriods * request.Tariff.PeriodMonths);
 
         return new TariffRenewalCalculationResult(
-            request.Tariff.Code,
+            request.Tariff.Id,
             effectivePeriodPriceRub,
             purchasedPeriods,
             chargedAmountRub,

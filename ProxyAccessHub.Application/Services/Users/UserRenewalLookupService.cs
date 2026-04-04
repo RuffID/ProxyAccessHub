@@ -12,10 +12,8 @@ namespace ProxyAccessHub.Application.Services.Users;
 /// </summary>
 public class UserRenewalLookupService(
     IProxyAccessHubUnitOfWork unitOfWork,
-    ITariffCatalog tariffCatalog,
     ITariffPriceResolver tariffPriceResolver) : IUserRenewalLookupService
 {
-
     /// <inheritdoc />
     public async Task<UserRenewalLookupResult> FindAsync(string searchValue, CancellationToken cancellationToken = default)
     {
@@ -33,7 +31,7 @@ public class UserRenewalLookupService(
 
         if (telemtMatches.Count == 1)
         {
-            return BuildResult(telemtMatches[0], "telemt id");
+            return await BuildResultAsync(telemtMatches[0], "telemt id", cancellationToken);
         }
 
         string? normalizedSecret = TryExtractProxySecret(normalizedSearchValue);
@@ -51,7 +49,7 @@ public class UserRenewalLookupService(
             throw new InvalidOperationException("По указанному окончанию proxy-ссылки найдено несколько пользователей.");
         }
 
-        return BuildResult(proxyMatches[0], "окончание proxy-ссылки");
+        return await BuildResultAsync(proxyMatches[0], "окончание proxy-ссылки", cancellationToken);
     }
 
     /// <inheritdoc />
@@ -60,12 +58,13 @@ public class UserRenewalLookupService(
         ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("Пользователь для продления не найден.");
 
-        return BuildResult(user, "локальный идентификатор");
+        return await BuildResultAsync(user, "локальный идентификатор", cancellationToken);
     }
 
-    private UserRenewalLookupResult BuildResult(ProxyUser user, string searchKind)
+    private async Task<UserRenewalLookupResult> BuildResultAsync(ProxyUser user, string searchKind, CancellationToken cancellationToken)
     {
-        TariffPlan tariff = tariffCatalog.GetRequired(user.TariffCode);
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
         TariffUserPriceOverride? priceOverride = user.TariffSettings is null
             ? null
             : new TariffUserPriceOverride(user.TariffSettings.CustomPeriodPriceRub, user.TariffSettings.DiscountPercent);
@@ -77,7 +76,7 @@ public class UserRenewalLookupService(
             user.Id,
             user.TelemtUserId,
             user.ProxyLink,
-            tariff.Code,
+            tariff.Id,
             tariff.Name,
             user.BalanceRub,
             user.AccessPaidToUtc,

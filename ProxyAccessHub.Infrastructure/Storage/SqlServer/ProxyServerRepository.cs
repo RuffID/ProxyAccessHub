@@ -14,6 +14,7 @@ namespace ProxyAccessHub.Infrastructure.Storage.SqlServer;
 public class ProxyServerRepository(
     IAppDbContext<ProxyAccessHubDbContext> dbContext,
     IGetItemByIdRepository<ProxyServerEntity, Guid, ProxyAccessHubDbContext> getByIdRepository,
+    IGetItemByPredicateRepository<ProxyServerEntity, ProxyAccessHubDbContext> getByPredicateRepository,
     IQueryRepository<ProxyServerEntity, ProxyAccessHubDbContext> queryRepository,
     ICreateItemRepository<ProxyServerEntity, ProxyAccessHubDbContext> createRepository) : IProxyServerRepository
 {
@@ -21,15 +22,62 @@ public class ProxyServerRepository(
     public async Task<ProxyServer?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         ProxyServerEntity? entity = await getByIdRepository.GetItemByIdAsync(id, asNoTracking: true, ct: cancellationToken);
+        return entity is null ? null : Map(entity);
+    }
+
+    /// <inheritdoc />
+    public async Task<ProxyServer?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new InvalidOperationException("Код сервера не задан.");
+        }
+
+        ProxyServerEntity? entity = await getByPredicateRepository.GetItemByPredicateAsync(
+            server => server.Code == code.Trim(),
+            asNoTracking: true,
+            ct: cancellationToken);
 
         return entity is null ? null : Map(entity);
+    }
+
+    /// <inheritdoc />
+    public async Task<ProxyServer?> GetActiveByEndpointAsync(string host, int apiPort, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            throw new InvalidOperationException("Хост сервера не задан.");
+        }
+
+        if (apiPort <= 0)
+        {
+            throw new InvalidOperationException("Порт API сервера не задан.");
+        }
+
+        string normalizedHost = NormalizeApiHost(host);
+        List<ProxyServerEntity> activeEntities = await queryRepository.Query(asNoTracking: true)
+            .Where(server => server.IsActive && server.ApiPort == apiPort)
+            .ToListAsync(cancellationToken);
+
+        ProxyServer[] matchedServers = activeEntities
+            .Select(Map)
+            .Where(server => string.Equals(NormalizeApiHost(server.Host), normalizedHost, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        return matchedServers.Length switch
+        {
+            0 => null,
+            1 => matchedServers[0],
+            _ => throw new InvalidOperationException($"Найдено несколько активных серверов для telemt API '{normalizedHost}:{apiPort}'.")
+        };
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<ProxyServer>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         List<ProxyServerEntity> entities = await queryRepository.Query(asNoTracking: true)
-            .OrderBy(server => server.Code)
+            .OrderBy(server => server.Name)
+            .ThenBy(server => server.Code)
             .ToListAsync(cancellationToken);
 
         return entities.Select(Map).ToArray();
@@ -47,8 +95,8 @@ public class ProxyServerRepository(
     /// <inheritdoc />
     public Task UpdateAsync(ProxyServer server, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
         ValidateServer(server);
+        cancellationToken.ThrowIfCancellationRequested();
         dbContext.Set<ProxyServerEntity>().Update(Map(server));
         return Task.CompletedTask;
     }
@@ -61,13 +109,24 @@ public class ProxyServerRepository(
             Code = server.Code,
             Name = server.Name,
             Host = server.Host,
-            MaxUsers = server.MaxUsers
+            ApiPort = server.ApiPort,
+            ApiBearerToken = server.ApiBearerToken,
+            MaxUsers = server.MaxUsers,
+            IsActive = server.IsActive
         };
     }
 
     private static ProxyServer Map(ProxyServerEntity entity)
     {
-        return new ProxyServer(entity.Id, entity.Code, entity.Name, entity.Host, entity.MaxUsers);
+        return new ProxyServer(
+            entity.Id,
+            entity.Code,
+            entity.Name,
+            entity.Host,
+            entity.ApiPort,
+            entity.ApiBearerToken,
+            entity.MaxUsers,
+            entity.IsActive);
     }
 
     private static void ValidateServer(ProxyServer server)
@@ -87,9 +146,51 @@ public class ProxyServerRepository(
             throw new InvalidOperationException("Хост сервера не задан.");
         }
 
+        if (server.ApiPort <= 0)
+        {
+            throw new InvalidOperationException("Порт API сервера не задан.");
+        }
+
+        if (string.IsNullOrWhiteSpace(server.ApiBearerToken))
+        {
+            throw new InvalidOperationException("Bearer-токен API сервера не задан.");
+        }
+
         if (server.MaxUsers <= 0)
         {
             throw new InvalidOperationException("Лимит пользователей на сервере должен быть больше нуля.");
         }
+    }
+
+    private static string NormalizeApiHost(string host)
+    {
+        string trimmedHost = host.Trim();
+
+        if (Uri.TryCreate(trimmedHost, UriKind.Absolute, out Uri? absoluteUri))
+        {
+            if (string.IsNullOrWhiteSpace(absoluteUri.Host))
+            {
+                throw new InvalidOperationException($"Хост сервера '{host}' имеет неверный формат.");
+            }
+
+            return absoluteUri.Host;
+        }
+
+        if (Uri.CheckHostName(trimmedHost) is UriHostNameType.Dns or UriHostNameType.IPv4 or UriHostNameType.IPv6)
+        {
+            return trimmedHost;
+        }
+
+        if (!Uri.TryCreate($"{Uri.UriSchemeHttp}://{trimmedHost}", UriKind.Absolute, out Uri? hostUri))
+        {
+            throw new InvalidOperationException($"Хост сервера '{host}' имеет неверный формат.");
+        }
+
+        if (string.IsNullOrWhiteSpace(hostUri.Host))
+        {
+            throw new InvalidOperationException($"Хост сервера '{host}' имеет неверный формат.");
+        }
+
+        return hostUri.Host;
     }
 }

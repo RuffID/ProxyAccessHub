@@ -28,3 +28,7 @@ README.md
 !.git/config
 !.git/packed-refs
 !.git/refs/heads/**
+**/ProxyAccessHub/ProxyAccessHub/keys-windows
+**/ProxyAccessHub/ProxyAccessHub/keys-linux
+**/ProxyAccessHub/ProxyAccessHub/Config
+**/ProxyAccessHub/.codex-build-temp

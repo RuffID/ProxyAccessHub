@@ -1,9 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
+using ProxyAccessHub.Application.Abstractions.Administration;
 using ProxyAccessHub.Application.Abstractions.Payments;
 using ProxyAccessHub.Application.Abstractions.Subscriptions;
 using ProxyAccessHub.Application.Abstractions.Telemt;
 using ProxyAccessHub.Application.Abstractions.Tariffs;
 using ProxyAccessHub.Application.Abstractions.Users;
+using ProxyAccessHub.Application.Services.Administration;
 using ProxyAccessHub.Application.Services.Payments;
 using ProxyAccessHub.Application.Services.Subscriptions;
 using ProxyAccessHub.Application.Services.Telemt;
@@ -24,7 +26,6 @@ public static class DependencyInjection
     /// <returns>Текущая коллекция сервисов.</returns>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddSingleton<ITariffCatalog, ConfiguredTariffCatalog>();
         services.AddSingleton<ITariffPriceResolver, TariffPriceResolver>();
         services.AddSingleton<ITariffRenewalCalculator, TariffRenewalCalculator>();
         services.AddScoped<IUserSubscriptionRenewalService, UserSubscriptionRenewalService>();
@@ -34,6 +35,8 @@ public static class DependencyInjection
         services.AddScoped<IUserRenewalLookupService, UserRenewalLookupService>();
         services.AddScoped<IUserConnectionCreationService, UserConnectionCreationService>();
         services.AddScoped<IAdminUserManagementService, AdminUserManagementService>();
+        services.AddScoped<IAdminTariffManagementService, AdminTariffManagementService>();
+        services.AddScoped<IAdminServerManagementService, AdminServerManagementService>();
 
         return services;
     }

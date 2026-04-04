@@ -88,7 +88,7 @@ public class ProxyUserRepository(
             ProxyLink = user.ProxyLink,
             ProxyLinkLookupKey = user.ProxyLinkLookupKey,
             ServerId = user.ServerId,
-            TariffCode = user.TariffCode,
+            TariffId = user.TariffId,
             CustomPeriodPriceRub = user.TariffSettings?.CustomPeriodPriceRub,
             DiscountPercent = user.TariffSettings?.DiscountPercent,
             BalanceRub = user.BalanceRub,
@@ -120,7 +120,7 @@ public class ProxyUserRepository(
             entity.ProxyLink,
             entity.ProxyLinkLookupKey,
             entity.ServerId,
-            entity.TariffCode,
+            entity.TariffId,
             tariffSettings,
             entity.BalanceRub,
             entity.AccessPaidToUtc,
@@ -153,7 +153,10 @@ public class ProxyUserRepository(
         RequireValue(user.TelemtUserId, nameof(user.TelemtUserId));
         RequireValue(user.ProxyLink, nameof(user.ProxyLink));
         RequireValue(user.ProxyLinkLookupKey, nameof(user.ProxyLinkLookupKey));
-        RequireValue(user.TariffCode, nameof(user.TariffCode));
+        if (user.TariffId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Идентификатор тарифа пользователя не задан.");
+        }
 
         if (user.BalanceRub < 0m)
         {

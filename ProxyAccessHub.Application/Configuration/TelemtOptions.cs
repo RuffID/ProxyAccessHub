@@ -16,16 +16,6 @@ public sealed class TelemtOptions
     public string ApiBaseUrl { get; init; } = string.Empty;
 
     /// <summary>
-    /// Код локального сервера, к которому относится источник telemt.
-    /// </summary>
-    public string ServerCode { get; init; } = "primary";
-
-    /// <summary>
-    /// Название локального сервера, к которому относится источник telemt.
-    /// </summary>
-    public string ServerName { get; init; } = "Основной сервер";
-
-    /// <summary>
     /// Значение заголовка Authorization для API telemt.
     /// </summary>
     public string AuthorizationHeader { get; init; } = string.Empty;

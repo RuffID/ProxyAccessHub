@@ -11,7 +11,7 @@ namespace ProxyAccessHub.Domain.Entities;
 /// <param name="ProxyLink">Полная proxy-ссылка пользователя.</param>
 /// <param name="ProxyLinkLookupKey">Нормализованный ключ для поиска по proxy-ссылке.</param>
 /// <param name="ServerId">Идентификатор сервера пользователя.</param>
-/// <param name="TariffCode">Код назначенного тарифа.</param>
+/// <param name="TariffId">Идентификатор назначенного тарифа.</param>
 /// <param name="TariffSettings">Индивидуальные настройки тарифа пользователя.</param>
 /// <param name="BalanceRub">Текущий баланс пользователя в рублях.</param>
 /// <param name="AccessPaidToUtc">Дата оплаченного доступа в UTC.</param>
@@ -33,7 +33,7 @@ public record ProxyUser(
     string ProxyLink,
     string ProxyLinkLookupKey,
     Guid ServerId,
-    string TariffCode,
+    Guid TariffId,
     UserTariffSettings? TariffSettings,
     decimal BalanceRub,
     DateTimeOffset? AccessPaidToUtc,

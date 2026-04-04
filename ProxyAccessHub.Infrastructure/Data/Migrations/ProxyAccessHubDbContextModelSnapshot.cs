@@ -98,6 +98,14 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ApiBearerToken")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.Property<int>("ApiPort")
+                        .HasColumnType("int");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -107,6 +115,9 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
 
                     b.Property<int>("MaxUsers")
                         .HasColumnType("int");
@@ -186,10 +197,8 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                     b.Property<Guid>("ServerId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("TariffCode")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                    b.Property<Guid>("TariffId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("TelemtRevision")
                         .IsRequired()
@@ -234,10 +243,8 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset>("StartedAtUtc")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<string>("TariffCode")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                    b.Property<Guid>("TariffId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
@@ -252,9 +259,15 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("ProxyAccessHub.Infrastructure.Data.Entities.TariffDefinitionEntity", b =>
                 {
-                    b.Property<string>("Code")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsUnlimited")
                         .HasColumnType("bit");
@@ -274,7 +287,7 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                     b.Property<bool>("RequiresRenewal")
                         .HasColumnType("bit");
 
-                    b.HasKey("Code");
+                    b.HasKey("Id");
 
                     b.ToTable("Tariffs", (string)null);
                 });

@@ -6,9 +6,9 @@ namespace ProxyAccessHub.Infrastructure.Data.Entities;
 public class TariffDefinitionEntity
 {
     /// <summary>
-    /// Код тарифа.
+    /// Идентификатор тарифа.
     /// </summary>
-    public string Code { get; set; } = string.Empty;
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Название тарифа.
@@ -34,4 +34,14 @@ public class TariffDefinitionEntity
     /// Признак обязательного продления по периодам.
     /// </summary>
     public bool RequiresRenewal { get; set; }
+
+    /// <summary>
+    /// Признак активности тарифа.
+    /// </summary>
+    public bool IsActive { get; set; }
+
+    /// <summary>
+    /// Признак тарифа по умолчанию.
+    /// </summary>
+    public bool IsDefault { get; set; }
 }

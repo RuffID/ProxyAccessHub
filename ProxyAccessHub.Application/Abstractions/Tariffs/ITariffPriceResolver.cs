@@ -1,4 +1,5 @@
 using ProxyAccessHub.Application.Models.Tariffs;
+using ProxyAccessHub.Domain.Entities;
 
 namespace ProxyAccessHub.Application.Abstractions.Tariffs;
 
@@ -13,5 +14,5 @@ public interface ITariffPriceResolver
     /// <param name="tariff">Тариф для расчёта.</param>
     /// <param name="priceOverride">Индивидуальные условия пользователя.</param>
     /// <returns>Эффективная цена периода.</returns>
-    decimal ResolvePeriodPrice(TariffPlan tariff, TariffUserPriceOverride? priceOverride);
+    decimal ResolvePeriodPrice(TariffDefinition tariff, TariffUserPriceOverride? priceOverride);
 }

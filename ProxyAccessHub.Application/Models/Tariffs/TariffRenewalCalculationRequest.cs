@@ -1,3 +1,5 @@
+using ProxyAccessHub.Domain.Entities;
+
 namespace ProxyAccessHub.Application.Models.Tariffs;
 
 /// <summary>
@@ -9,7 +11,7 @@ namespace ProxyAccessHub.Application.Models.Tariffs;
 /// <param name="AccessPaidToUtc">Текущая дата оплаченного доступа в UTC.</param>
 /// <param name="PriceOverride">Индивидуальные условия цены пользователя.</param>
 public sealed record TariffRenewalCalculationRequest(
-    TariffPlan Tariff,
+    TariffDefinition Tariff,
     decimal BalanceRub,
     DateTimeOffset CalculatedAtUtc,
     DateTimeOffset? AccessPaidToUtc,

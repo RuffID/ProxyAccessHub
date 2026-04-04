@@ -16,39 +16,61 @@ namespace ProxyAccessHub.Application.Services.Users;
 /// </summary>
 public sealed class AdminUserManagementService(
     IProxyAccessHubUnitOfWork unitOfWork,
-    ITariffCatalog tariffCatalog,
+    ITariffPriceResolver tariffPriceResolver,
     ITelemtSyncStateStore telemtSyncStateStore) : IAdminUserManagementService
 {
+    private const decimal MAX_CUSTOM_PERIOD_PRICE_RUB = 1000m;
+
     /// <inheritdoc />
     public async Task<AdminUsersPageData> GetPageDataAsync(bool onlyManualHandling, CancellationToken cancellationToken = default)
     {
         IReadOnlyList<ProxyUser> users = await unitOfWork.Users.GetAllAsync(cancellationToken);
         IReadOnlyList<ProxyServer> servers = await unitOfWork.Servers.GetAllAsync(cancellationToken);
         IReadOnlyDictionary<Guid, ProxyServer> serversById = servers.ToDictionary(server => server.Id);
-        IReadOnlyList<AdminTariffOption> tariffs = tariffCatalog.GetAll()
-            .Select(tariff => new AdminTariffOption(tariff.Code, tariff.Name, tariff.RequiresRenewal))
+        IReadOnlyList<TariffDefinition> tariffs = await unitOfWork.Tariffs.GetAllAsync(cancellationToken);
+        IReadOnlyDictionary<Guid, TariffDefinition> tariffsById = tariffs.ToDictionary(tariff => tariff.Id);
+        IReadOnlyList<AdminTariffOption> tariffOptions = tariffs
+            .Select(tariff => new AdminTariffOption(tariff.Id, tariff.Name, tariff.RequiresRenewal))
             .ToArray();
 
         IReadOnlyList<AdminUserListItem> userItems = users
             .Where(user => !onlyManualHandling || user.ManualHandlingStatus == ManualHandlingStatus.Required)
-            .Select(user => MapUser(user, serversById))
+            .Select(user => MapUser(user, serversById, tariffsById))
             .ToArray();
 
-        return new AdminUsersPageData(userItems, tariffs, BuildTelemtSyncStatus(telemtSyncStateStore.GetState()));
+        return new AdminUsersPageData(userItems, tariffOptions, BuildTelemtSyncStatus(telemtSyncStateStore.GetState()));
     }
 
     /// <inheritdoc />
-    public async Task UpdateUserTariffAsync(Guid userId, string tariffCode, decimal? customPeriodPriceRub, decimal? discountPercent, CancellationToken cancellationToken = default)
+    public async Task UpdateUserTariffPriceAsync(Guid userId, decimal customPeriodPriceRub, CancellationToken cancellationToken = default)
+    {
+        ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            ?? throw new KeyNotFoundException("Пользователь для обновления цены тарифа не найден.");
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
+
+        UserTariffSettings tariffSettings = BuildCustomPriceSettings(tariff, customPeriodPriceRub);
+        ProxyUser updatedUser = user with
+        {
+            TariffSettings = tariffSettings
+        };
+
+        await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateUserTariffAsync(Guid userId, Guid tariffId, CancellationToken cancellationToken = default)
     {
         ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("Пользователь для обновления тарифа не найден.");
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(tariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Тариф '{tariffId}' не найден.");
 
-        TariffPlan tariff = tariffCatalog.GetRequired(RequireTariffCode(tariffCode));
-        UserTariffSettings? tariffSettings = BuildTariffSettings(tariff, customPeriodPriceRub, discountPercent);
         ProxyUser updatedUser = user with
         {
-            TariffCode = tariff.Code,
-            TariffSettings = tariffSettings
+            TariffId = tariff.Id,
+            TariffSettings = null
         };
 
         await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
@@ -75,22 +97,35 @@ public sealed class AdminUserManagementService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private AdminUserListItem MapUser(ProxyUser user, IReadOnlyDictionary<Guid, ProxyServer> serversById)
+    private AdminUserListItem MapUser(
+        ProxyUser user,
+        IReadOnlyDictionary<Guid, ProxyServer> serversById,
+        IReadOnlyDictionary<Guid, TariffDefinition> tariffsById)
     {
         if (!serversById.TryGetValue(user.ServerId, out ProxyServer? server))
         {
             throw new KeyNotFoundException($"Для пользователя '{user.TelemtUserId}' не найден сервер '{user.ServerId}'.");
         }
 
-        TariffPlan tariff = tariffCatalog.GetRequired(user.TariffCode);
+        if (!tariffsById.TryGetValue(user.TariffId, out TariffDefinition? tariff))
+        {
+            throw new KeyNotFoundException($"Для пользователя '{user.TelemtUserId}' не найден тариф '{user.TariffId}'.");
+        }
+
+        decimal effectivePeriodPriceRub = tariffPriceResolver.ResolvePeriodPrice(
+            tariff,
+            user.TariffSettings is null
+                ? null
+                : new TariffUserPriceOverride(user.TariffSettings.CustomPeriodPriceRub, user.TariffSettings.DiscountPercent));
 
         return new AdminUserListItem(
             user.Id,
             user.TelemtUserId,
             server.Name,
-            tariff.Code,
+            tariff.Id,
             tariff.Name,
             tariff.RequiresRenewal,
+            effectivePeriodPriceRub,
             user.BalanceRub,
             user.AccessPaidToUtc,
             user.ManualHandlingStatus == ManualHandlingStatus.Required,
@@ -100,48 +135,26 @@ public sealed class AdminUserManagementService(
             user.TariffSettings?.DiscountPercent);
     }
 
-    private static UserTariffSettings? BuildTariffSettings(TariffPlan tariff, decimal? customPeriodPriceRub, decimal? discountPercent)
+    private static UserTariffSettings BuildCustomPriceSettings(TariffDefinition tariff, decimal customPeriodPriceRub)
     {
-        if (customPeriodPriceRub is null && discountPercent is null)
-        {
-            return null;
-        }
-
         if (!tariff.RequiresRenewal)
         {
-            throw new InvalidOperationException($"Для тарифа '{tariff.Name}' нельзя задавать индивидуальную цену или скидку.");
+            throw new InvalidOperationException($"Для тарифа '{tariff.Name}' нельзя задавать индивидуальную цену.");
         }
 
-        if (customPeriodPriceRub is not null && discountPercent is not null)
+        if (customPeriodPriceRub <= 0m)
         {
-            throw new InvalidOperationException("Нельзя одновременно задать индивидуальную цену и скидку.");
+            throw new InvalidOperationException("Индивидуальная цена периода должна быть больше нуля.");
         }
 
-        if (customPeriodPriceRub is decimal customPrice)
+        if (customPeriodPriceRub > MAX_CUSTOM_PERIOD_PRICE_RUB)
         {
-            if (customPrice <= 0m)
-            {
-                throw new InvalidOperationException("Индивидуальная цена периода должна быть больше нуля.");
-            }
-
-            return new UserTariffSettings(
-                decimal.Round(customPrice, 2, MidpointRounding.AwayFromZero),
-                null);
+            throw new InvalidOperationException($"Индивидуальная цена периода не должна превышать {MAX_CUSTOM_PERIOD_PRICE_RUB:0.##} руб.");
         }
 
-        if (discountPercent is decimal discount)
-        {
-            if (discount <= 0m || discount >= 100m)
-            {
-                throw new InvalidOperationException("Скидка должна быть больше нуля и меньше ста процентов.");
-            }
-
-            return new UserTariffSettings(
-                null,
-                decimal.Round(discount, 2, MidpointRounding.AwayFromZero));
-        }
-
-        throw new InvalidOperationException("Не удалось определить индивидуальные настройки тарифа пользователя.");
+        return new UserTariffSettings(
+            decimal.Round(customPeriodPriceRub, 2, MidpointRounding.AwayFromZero),
+            null);
     }
 
     private static string GetManualHandlingStatusName(ManualHandlingStatus manualHandlingStatus)
@@ -153,16 +166,6 @@ public sealed class AdminUserManagementService(
             ManualHandlingStatus.Completed => "Завершена",
             _ => throw new InvalidOperationException($"Неизвестный статус ручной обработки '{manualHandlingStatus}'.")
         };
-    }
-
-    private static string RequireTariffCode(string tariffCode)
-    {
-        if (string.IsNullOrWhiteSpace(tariffCode))
-        {
-            throw new InvalidOperationException("Не выбран тариф пользователя.");
-        }
-
-        return tariffCode.Trim();
     }
 
     private static AdminTelemtSyncStatus BuildTelemtSyncStatus(TelemtSyncState syncState)

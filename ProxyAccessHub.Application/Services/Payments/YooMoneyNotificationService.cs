@@ -54,7 +54,7 @@ public class YooMoneyNotificationService(
             throw new InvalidOperationException("Заявка на оплату уже была обработана ранее.");
         }
 
-        if (paymentRequest.AmountRub != notification.Amount)
+        if (paymentRequest.AmountRub != notification.WithdrawAmount)
         {
             throw new InvalidOperationException("Сумма уведомления не совпадает с ожидаемой суммой заявки.");
         }
@@ -73,7 +73,7 @@ public class YooMoneyNotificationService(
                     notification.OperationId,
                     user.Id,
                     notification.Label,
-                    notification.Amount);
+                    notification.WithdrawAmount);
                 return;
             }
 
@@ -83,7 +83,7 @@ public class YooMoneyNotificationService(
                 notification.OperationId,
                 user.Id,
                 notification.Label,
-                notification.Amount);
+                notification.WithdrawAmount);
             return;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -124,11 +124,12 @@ public class YooMoneyNotificationService(
         CancellationToken cancellationToken)
     {
         Subscription? currentSubscription = await unitOfWork.Subscriptions.GetByUserIdAsync(user.Id, cancellationToken);
-        UserSubscriptionRenewalResult renewalResult = userSubscriptionRenewalService.Apply(
+        UserSubscriptionRenewalResult renewalResult = await userSubscriptionRenewalService.ApplyAsync(
             user,
             currentSubscription,
             notification.Amount,
-            receivedAtUtc);
+            receivedAtUtc,
+            cancellationToken);
 
         Payment payment = new(
             Guid.NewGuid(),
@@ -167,7 +168,7 @@ public class YooMoneyNotificationService(
             paymentRequest.Id,
             pendingUser.Id,
             notification.OperationId.Trim(),
-            notification.Amount,
+            notification.WithdrawAmount,
             receivedAtUtc,
             PaymentStatus.Applied);
         PaymentRequest updatedPaymentRequest = paymentRequest with
@@ -195,7 +196,7 @@ public class YooMoneyNotificationService(
             paymentRequest.Id,
             user.Id,
             notification.OperationId.Trim(),
-            notification.Amount,
+            notification.WithdrawAmount,
             receivedAtUtc,
             PaymentStatus.RequiresManualHandling);
         PaymentRequest updatedPaymentRequest = paymentRequest with

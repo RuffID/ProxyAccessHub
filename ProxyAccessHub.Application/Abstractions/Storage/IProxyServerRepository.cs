@@ -16,6 +16,23 @@ public interface IProxyServerRepository
     Task<ProxyServer?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Возвращает сервер по коду.
+    /// </summary>
+    /// <param name="code">Код сервера.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Найденный сервер или <see langword="null" />.</returns>
+    Task<ProxyServer?> GetByCodeAsync(string code, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Возвращает активный сервер по хосту и порту telemt API.
+    /// </summary>
+    /// <param name="host">Хост сервера.</param>
+    /// <param name="apiPort">Порт telemt API.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Найденный сервер или <see langword="null" />.</returns>
+    Task<ProxyServer?> GetActiveByEndpointAsync(string host, int apiPort, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Возвращает все серверы.
     /// </summary>
     /// <param name="cancellationToken">Токен отмены.</param>

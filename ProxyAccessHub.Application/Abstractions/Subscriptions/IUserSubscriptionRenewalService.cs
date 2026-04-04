@@ -15,10 +15,12 @@ public interface IUserSubscriptionRenewalService
     /// <param name="currentSubscription">Текущее состояние подписки пользователя.</param>
     /// <param name="paymentAmountRub">Сумма входящего платежа в рублях.</param>
     /// <param name="calculatedAtUtc">Момент расчёта в UTC.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Обновлённые данные пользователя и подписки.</returns>
-    UserSubscriptionRenewalResult Apply(
+    Task<UserSubscriptionRenewalResult> ApplyAsync(
         ProxyUser user,
         Subscription? currentSubscription,
         decimal paymentAmountRub,
-        DateTimeOffset calculatedAtUtc);
+        DateTimeOffset calculatedAtUtc,
+        CancellationToken cancellationToken = default);
 }

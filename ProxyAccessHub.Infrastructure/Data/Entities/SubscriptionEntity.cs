@@ -18,9 +18,9 @@ public class SubscriptionEntity : IEntity<Guid>
     public Guid UserId { get; set; }
 
     /// <summary>
-    /// Код тарифа подписки.
+    /// Идентификатор тарифа подписки.
     /// </summary>
-    public string TariffCode { get; set; } = string.Empty;
+    public Guid TariffId { get; set; }
 
     /// <summary>
     /// Дата начала подписки в UTC.

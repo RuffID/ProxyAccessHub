@@ -6,7 +6,7 @@ namespace ProxyAccessHub.Application.Models.Users;
 /// <param name="UserId">Локальный идентификатор пользователя.</param>
 /// <param name="TelemtUserId">Идентификатор пользователя в telemt.</param>
 /// <param name="ProxyLink">Полная proxy-ссылка пользователя.</param>
-/// <param name="TariffCode">Код тарифа пользователя.</param>
+/// <param name="TariffId">Идентификатор тарифа пользователя.</param>
 /// <param name="TariffName">Название тарифа пользователя.</param>
 /// <param name="BalanceRub">Текущий баланс пользователя в рублях.</param>
 /// <param name="AccessPaidToUtc">Дата оплаченного доступа в UTC.</param>
@@ -18,7 +18,7 @@ public sealed record UserRenewalLookupResult(
     Guid UserId,
     string TelemtUserId,
     string ProxyLink,
-    string TariffCode,
+    Guid TariffId,
     string TariffName,
     decimal BalanceRub,
     DateTimeOffset? AccessPaidToUtc,

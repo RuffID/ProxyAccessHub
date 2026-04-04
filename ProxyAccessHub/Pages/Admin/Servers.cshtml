@@ -1,0 +1,15 @@
+@page
+@model ProxyAccessHub.Pages.Admin.ServersModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "Серверы";
+    string? requestVerificationToken = Antiforgery.GetAndStoreTokens(HttpContext).RequestToken;
+}
+
+<meta name="request-verification-token" content="@requestVerificationToken" />
+
+<main class="container py-4 py-lg-5">
+    <div id="adminServersPage"></div>
+</main>
+
+<script src="~/js/admin-servers.js"></script>

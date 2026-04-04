@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Options;
 using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Application.Abstractions.Telemt;
-using ProxyAccessHub.Application.Abstractions.Tariffs;
 using ProxyAccessHub.Application.Configuration;
 using ProxyAccessHub.Application.Models.Telemt;
 using ProxyAccessHub.Application.Services.Users;
@@ -16,9 +15,7 @@ namespace ProxyAccessHub.Application.Services.Telemt;
 public class TelemtUsersSyncService(
     ITelemtApiClient telemtApiClient,
     IProxyAccessHubUnitOfWork unitOfWork,
-    ITariffCatalog tariffCatalog,
-    IOptions<TelemtOptions> telemtOptions,
-    IOptions<ProxyServerPoolOptions> proxyServerPoolOptions) : ITelemtUsersSyncService
+    IOptions<TelemtOptions> telemtOptions) : ITelemtUsersSyncService
 {
     private const string MISSING_IN_TELEMT_REASON = "Пользователь отсутствует в telemt при фоновой синхронизации.";
 
@@ -30,6 +27,7 @@ public class TelemtUsersSyncService(
         TelemtUsersSnapshot snapshot = await telemtApiClient.GetUsersAsync(cancellationToken);
         DateTimeOffset syncedAtUtc = DateTimeOffset.UtcNow;
         ProxyServer server = await EnsureServerAsync(cancellationToken);
+        TariffDefinition defaultTariff = await GetDefaultTariffAsync(cancellationToken);
         IReadOnlyList<ProxyUser> localUsers = await unitOfWork.Users.GetAllAsync(cancellationToken);
         Dictionary<string, ProxyUser> localUsersByTelemtId = BuildLocalUsersByTelemtId(localUsers);
         HashSet<string> processedTelemtIds = new(StringComparer.OrdinalIgnoreCase);
@@ -42,7 +40,7 @@ public class TelemtUsersSyncService(
         {
             processedTelemtIds.Add(telemtUser.Username.Trim());
             localUsersByTelemtId.TryGetValue(telemtUser.Username.Trim(), out ProxyUser? existingUser);
-            ProxyUser synchronizedUser = BuildUser(server, snapshot.Revision, syncedAtUtc, telemtUser, existingUser);
+            ProxyUser synchronizedUser = BuildUser(server, defaultTariff, snapshot.Revision, syncedAtUtc, telemtUser, existingUser);
 
             if (existingUser is null)
             {
@@ -92,38 +90,29 @@ public class TelemtUsersSyncService(
 
     private async Task<ProxyServer> EnsureServerAsync(CancellationToken cancellationToken)
     {
-        IReadOnlyList<ProxyServer> servers = await unitOfWork.Servers.GetAllAsync(cancellationToken);
-        ProxyServer? existingServer = servers.FirstOrDefault(server =>
-            string.Equals(server.Code, telemtOptions.Value.ServerCode, StringComparison.OrdinalIgnoreCase));
+        Uri apiUri = CreateApiUri();
+        ProxyServer server = await unitOfWork.Servers.GetActiveByEndpointAsync(apiUri.Host, apiUri.Port, cancellationToken)
+            ?? throw new InvalidOperationException($"Активный сервер с хостом '{apiUri.Host}' и портом '{apiUri.Port}' не найден в базе данных.");
 
-        if (existingServer is not null)
+        return server;
+    }
+
+    private async Task<TariffDefinition> GetDefaultTariffAsync(CancellationToken cancellationToken)
+    {
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetDefaultAsync(cancellationToken)
+            ?? throw new InvalidOperationException("В базе данных не найден тариф по умолчанию.");
+
+        if (!tariff.IsActive)
         {
-            Uri existingApiUri = CreateApiUri();
-            ProxyServer synchronizedServer = existingServer with
-            {
-                Name = telemtOptions.Value.ServerName.Trim(),
-                Host = existingApiUri.Host,
-                MaxUsers = proxyServerPoolOptions.Value.DefaultMaxUsersPerServer
-            };
-
-            await unitOfWork.Servers.UpdateAsync(synchronizedServer, cancellationToken);
-            return synchronizedServer;
+            throw new InvalidOperationException($"Тариф по умолчанию '{tariff.Id}' неактивен.");
         }
 
-        Uri apiUri = CreateApiUri();
-        ProxyServer server = new(
-            Guid.NewGuid(),
-            telemtOptions.Value.ServerCode.Trim(),
-            telemtOptions.Value.ServerName.Trim(),
-            apiUri.Host,
-            proxyServerPoolOptions.Value.DefaultMaxUsersPerServer);
-
-        await unitOfWork.Servers.AddAsync(server, cancellationToken);
-        return server;
+        return tariff;
     }
 
     private ProxyUser BuildUser(
         ProxyServer server,
+        TariffDefinition defaultTariff,
         string revision,
         DateTimeOffset syncedAtUtc,
         TelemtUserSnapshot telemtUser,
@@ -131,8 +120,8 @@ public class TelemtUsersSyncService(
     {
         string primaryProxyLink = PendingConnectionUserConventions.SelectPrimaryProxyLink(telemtUser.Links);
         string proxyLookupKey = PendingConnectionUserConventions.BuildProxyLookupKey(primaryProxyLink);
-        string tariffCode = existingUser?.TariffCode ?? tariffCatalog.DefaultTariff.Code;
-        bool isUnlimited = existingUser?.IsUnlimited ?? tariffCatalog.GetRequired(tariffCode).IsUnlimited;
+        Guid tariffId = existingUser?.TariffId ?? defaultTariff.Id;
+        bool isUnlimited = existingUser?.IsUnlimited ?? defaultTariff.IsUnlimited;
 
         return new ProxyUser(
             existingUser?.Id ?? Guid.NewGuid(),
@@ -140,7 +129,7 @@ public class TelemtUsersSyncService(
             primaryProxyLink,
             proxyLookupKey,
             server.Id,
-            tariffCode,
+            tariffId,
             existingUser?.TariffSettings,
             existingUser?.BalanceRub ?? 0m,
             telemtUser.ExpirationUtc,
@@ -188,20 +177,5 @@ public class TelemtUsersSyncService(
     private void ValidateOptions()
     {
         CreateApiUri();
-
-        if (string.IsNullOrWhiteSpace(telemtOptions.Value.ServerCode))
-        {
-            throw new InvalidOperationException("Не задан код сервера telemt.");
-        }
-
-        if (string.IsNullOrWhiteSpace(telemtOptions.Value.ServerName))
-        {
-            throw new InvalidOperationException("Не задано название сервера telemt.");
-        }
-
-        if (proxyServerPoolOptions.Value.DefaultMaxUsersPerServer <= 0)
-        {
-            throw new InvalidOperationException("Лимит пользователей на сервере должен быть больше нуля.");
-        }
     }
 }

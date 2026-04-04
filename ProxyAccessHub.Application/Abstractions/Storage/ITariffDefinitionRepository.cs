@@ -8,12 +8,19 @@ namespace ProxyAccessHub.Application.Abstractions.Storage;
 public interface ITariffDefinitionRepository
 {
     /// <summary>
-    /// Возвращает тариф по коду.
+    /// Возвращает тариф по идентификатору.
     /// </summary>
-    /// <param name="code">Код тарифа.</param>
+    /// <param name="id">Идентификатор тарифа.</param>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Найденный тариф или <see langword="null" />.</returns>
-    Task<TariffDefinition?> GetByCodeAsync(string code, CancellationToken cancellationToken = default);
+    Task<TariffDefinition?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Возвращает тариф по умолчанию.
+    /// </summary>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Тариф по умолчанию или <see langword="null" />.</returns>
+    Task<TariffDefinition?> GetDefaultAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Возвращает все тарифы.
@@ -21,4 +28,18 @@ public interface ITariffDefinitionRepository
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Список тарифов.</returns>
     Task<IReadOnlyList<TariffDefinition>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Добавляет тариф.
+    /// </summary>
+    /// <param name="tariff">Тариф для добавления.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    Task AddAsync(TariffDefinition tariff, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Обновляет тариф.
+    /// </summary>
+    /// <param name="tariff">Актуальное состояние тарифа.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    Task UpdateAsync(TariffDefinition tariff, CancellationToken cancellationToken = default);
 }

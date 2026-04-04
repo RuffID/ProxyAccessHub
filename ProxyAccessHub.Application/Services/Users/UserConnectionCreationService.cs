@@ -6,7 +6,6 @@ using ProxyAccessHub.Application.Abstractions.Telemt;
 using ProxyAccessHub.Application.Abstractions.Users;
 using ProxyAccessHub.Application.Configuration;
 using ProxyAccessHub.Application.Models.Payments;
-using ProxyAccessHub.Application.Models.Tariffs;
 using ProxyAccessHub.Application.Models.Telemt;
 using ProxyAccessHub.Application.Models.Users;
 using ProxyAccessHub.Domain.Entities;
@@ -19,23 +18,20 @@ namespace ProxyAccessHub.Application.Services.Users;
 /// </summary>
 public sealed class UserConnectionCreationService(
     IProxyAccessHubUnitOfWork unitOfWork,
-    ITariffCatalog tariffCatalog,
     ITariffPriceResolver tariffPriceResolver,
     IUserPaymentRequestService userPaymentRequestService,
     ITelemtApiClient telemtApiClient,
-    IOptions<TelemtOptions> telemtOptions,
-    IOptions<ProxyServerPoolOptions> proxyServerPoolOptions,
     IOptions<YooMoneyOptions> yooMoneyOptions) : IUserConnectionCreationService
 {
     /// <inheritdoc />
     public async Task<NewConnectionOffer> GetOfferAsync(CancellationToken cancellationToken = default)
     {
-        TariffPlan tariff = GetTariffForNewConnection();
+        TariffDefinition tariff = await GetDefaultTariffForNewConnectionAsync(cancellationToken);
         ProxyServer server = await EnsureServerAsync(cancellationToken);
         decimal amountRub = tariffPriceResolver.ResolvePeriodPrice(tariff, null);
 
         return new NewConnectionOffer(
-            tariff.Code,
+            tariff.Id,
             tariff.Name,
             tariff.PeriodMonths,
             amountRub,
@@ -45,7 +41,7 @@ public sealed class UserConnectionCreationService(
     /// <inheritdoc />
     public async Task<YooMoneyPaymentFormModel> CreatePaymentAsync(CancellationToken cancellationToken = default)
     {
-        TariffPlan tariff = GetTariffForNewConnection();
+        TariffDefinition tariff = await GetDefaultTariffForNewConnectionAsync(cancellationToken);
         ProxyServer server = await EnsureServerAsync(cancellationToken);
         DateTimeOffset createdAtUtc = DateTimeOffset.UtcNow;
         string telemtUserId = PendingConnectionUserConventions.GenerateTelemtUserId();
@@ -55,7 +51,7 @@ public sealed class UserConnectionCreationService(
             PendingConnectionUserConventions.BuildPendingProxyLink(telemtUserId),
             PendingConnectionUserConventions.BuildPendingProxyLookupKey(),
             server.Id,
-            tariff.Code,
+            tariff.Id,
             null,
             0m,
             null,
@@ -89,7 +85,7 @@ public sealed class UserConnectionCreationService(
             ?? throw new KeyNotFoundException("Заявка на оплату нового подключения не найдена.");
         ProxyUser user = await unitOfWork.Users.GetByIdAsync(paymentRequest.UserId, cancellationToken)
             ?? throw new KeyNotFoundException("Локальный пользователь заявки на оплату не найден.");
-        TariffPlan tariff = tariffCatalog.GetRequired(user.TariffCode);
+        TariffDefinition tariff = await GetRequiredTariffAsync(user.TariffId, cancellationToken);
 
         if (user.ManualHandlingStatus == ManualHandlingStatus.Required)
         {
@@ -98,7 +94,7 @@ public sealed class UserConnectionCreationService(
                 paymentRequest.Label,
                 paymentRequest.AmountRub,
                 "Требуется ручная обработка",
-                "Оплата получена, но автоматическое создание пользователя завершилось ошибкой. Кейc переведён в ручную обработку.",
+                "Оплата получена, но автоматическое создание пользователя завершилось ошибкой. Кейс переведён в ручную обработку.",
                 false,
                 true,
                 paymentRequest.ExpiresAtUtc,
@@ -172,7 +168,7 @@ public sealed class UserConnectionCreationService(
             throw new InvalidOperationException("Локальный пользователь не находится в состоянии ожидания создания нового подключения.");
         }
 
-        TariffPlan tariff = GetTariffForNewConnection();
+        TariffDefinition tariff = await GetDefaultTariffForNewConnectionAsync(cancellationToken);
         DateTimeOffset expirationUtc = paidAtUtc.AddMonths(tariff.PeriodMonths);
         TelemtCreatedUserResult createdUser = await telemtApiClient.CreateUserAsync(
             pendingUser.TelemtUserId,
@@ -202,7 +198,7 @@ public sealed class UserConnectionCreationService(
         Subscription createdSubscription = new(
             Guid.NewGuid(),
             updatedUser.Id,
-            updatedUser.TariffCode,
+            updatedUser.TariffId,
             paidAtUtc,
             updatedUser.AccessPaidToUtc,
             updatedUser.IsUnlimited);
@@ -210,13 +206,19 @@ public sealed class UserConnectionCreationService(
         return new NewConnectionProvisioningResult(updatedUser, createdSubscription);
     }
 
-    private TariffPlan GetTariffForNewConnection()
+    private async Task<TariffDefinition> GetDefaultTariffForNewConnectionAsync(CancellationToken cancellationToken)
     {
-        TariffPlan tariff = tariffCatalog.DefaultTariff;
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetDefaultAsync(cancellationToken)
+            ?? throw new InvalidOperationException("В базе данных не найден тариф по умолчанию.");
+
+        if (!tariff.IsActive)
+        {
+            throw new InvalidOperationException($"Тариф по умолчанию '{tariff.Id}' неактивен.");
+        }
 
         if (!tariff.RequiresRenewal || tariff.IsUnlimited)
         {
-            throw new InvalidOperationException("Для создания нового подключения должен быть настроен оплачиваемый периодический тариф по умолчанию.");
+            throw new InvalidOperationException("Для создания нового подключения должен быть настроен активный периодический тариф по умолчанию.");
         }
 
         decimal amountRub = tariffPriceResolver.ResolvePeriodPrice(tariff, null);
@@ -228,27 +230,23 @@ public sealed class UserConnectionCreationService(
         return tariff;
     }
 
+    private async Task<TariffDefinition> GetRequiredTariffAsync(Guid tariffId, CancellationToken cancellationToken)
+    {
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(tariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Тариф '{tariffId}' не найден.");
+        return tariff;
+    }
+
     private async Task<ProxyServer> EnsureServerAsync(CancellationToken cancellationToken)
     {
-        ValidateTelemtOptions();
-
         IReadOnlyList<ProxyServer> servers = await unitOfWork.Servers.GetAllAsync(cancellationToken);
-        ProxyServer? telemtServer = servers.FirstOrDefault(server =>
-            string.Equals(server.Code, telemtOptions.Value.ServerCode.Trim(), StringComparison.OrdinalIgnoreCase));
+        IReadOnlyList<ProxyServer> activeServers = servers
+            .Where(server => server.IsActive)
+            .ToArray();
 
-        if (telemtServer is null)
+        if (activeServers.Count == 0)
         {
-            Uri apiUri = CreateApiUri();
-            telemtServer = new ProxyServer(
-                Guid.NewGuid(),
-                telemtOptions.Value.ServerCode.Trim(),
-                telemtOptions.Value.ServerName.Trim(),
-                apiUri.Host,
-                proxyServerPoolOptions.Value.DefaultMaxUsersPerServer);
-
-            await unitOfWork.Servers.AddAsync(telemtServer, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            servers = [telemtServer];
+            throw new InvalidOperationException("В базе данных нет активных серверов для создания нового подключения.");
         }
 
         IReadOnlyList<ProxyUser> users = await unitOfWork.Users.GetAllAsync(cancellationToken);
@@ -256,16 +254,13 @@ public sealed class UserConnectionCreationService(
             .GroupBy(user => user.ServerId)
             .ToDictionary(group => group.Key, group => group.Count());
 
-        ProxyServer? selectedServer = servers
-            .OrderBy(server => server.Code, StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault(server =>
-            {
-                int userCount = userCountsByServerId.GetValueOrDefault(server.Id);
-                return userCount < server.MaxUsers;
-            });
+        ProxyServer? selectedServer = activeServers
+            .OrderBy(server => userCountsByServerId.GetValueOrDefault(server.Id))
+            .ThenBy(server => server.Code, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(server => userCountsByServerId.GetValueOrDefault(server.Id) < server.MaxUsers);
 
         return selectedServer
-            ?? throw new InvalidOperationException("Не найден доступный сервер для создания нового подключения.");
+            ?? throw new InvalidOperationException("Не найден доступный активный сервер для создания нового подключения.");
     }
 
     private string BuildPaymentSuccessUrl(Guid paymentRequestId)
@@ -278,35 +273,5 @@ public sealed class UserConnectionCreationService(
         Uri baseUri = new(yooMoneyOptions.Value.SuccessUrl.Trim(), UriKind.Absolute);
         string separator = string.IsNullOrEmpty(baseUri.Query) ? "?" : "&";
         return baseUri + $"{separator}paymentRequestId={paymentRequestId:D}";
-    }
-
-    private void ValidateTelemtOptions()
-    {
-        CreateApiUri();
-
-        if (string.IsNullOrWhiteSpace(telemtOptions.Value.ServerCode))
-        {
-            throw new InvalidOperationException("Не задан код сервера telemt.");
-        }
-
-        if (string.IsNullOrWhiteSpace(telemtOptions.Value.ServerName))
-        {
-            throw new InvalidOperationException("Не задано название сервера telemt.");
-        }
-
-        if (proxyServerPoolOptions.Value.DefaultMaxUsersPerServer <= 0)
-        {
-            throw new InvalidOperationException("Лимит пользователей на сервере должен быть больше нуля.");
-        }
-    }
-
-    private Uri CreateApiUri()
-    {
-        if (!Uri.TryCreate(telemtOptions.Value.ApiBaseUrl, UriKind.Absolute, out Uri? apiUri))
-        {
-            throw new InvalidOperationException("Адрес telemt API должен быть задан абсолютным URL.");
-        }
-
-        return apiUri;
     }
 }

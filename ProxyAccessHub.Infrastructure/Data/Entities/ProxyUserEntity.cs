@@ -36,7 +36,7 @@ public class ProxyUserEntity : IEntity<Guid>
     /// <summary>
     /// Код назначенного тарифа.
     /// </summary>
-    public string TariffCode { get; set; } = string.Empty;
+    public Guid TariffId { get; set; }
 
     /// <summary>
     /// Индивидуальная фиксированная цена периода в рублях.

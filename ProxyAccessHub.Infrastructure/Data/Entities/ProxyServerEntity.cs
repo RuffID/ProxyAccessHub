@@ -28,7 +28,22 @@ public class ProxyServerEntity : IEntity<Guid>
     public string Host { get; set; } = string.Empty;
 
     /// <summary>
+    /// Порт telemt API сервера.
+    /// </summary>
+    public int ApiPort { get; set; }
+
+    /// <summary>
+    /// Bearer-токен telemt API сервера.
+    /// </summary>
+    public string ApiBearerToken { get; set; } = string.Empty;
+
+    /// <summary>
     /// Лимит пользователей на сервере.
     /// </summary>
     public int MaxUsers { get; set; }
+
+    /// <summary>
+    /// Признак активности сервера.
+    /// </summary>
+    public bool IsActive { get; set; }
 }
