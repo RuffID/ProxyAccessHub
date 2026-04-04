@@ -44,6 +44,7 @@ function buildServersPageShell() {
 function buildCreateCard() {
     const section = createElement("section", ["card", "border-0", "shadow-sm"]);
     const body = createElement("div", ["card-body", "p-4"]);
+    const header = createElement("div", ["d-flex", "align-items-center", "justify-content-between", "gap-3", "mb-3"]);
     const title = createElement("h2", ["h5", "mb-3"]);
     title.textContent = "Новый сервер";
 
@@ -66,6 +67,11 @@ function buildCreateCard() {
     createButton.addEventListener("click", async () => {
         await createServer(nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput);
     });
+    title.classList.remove("mb-3");
+    const createButtonContainer = createElement("div", ["d-flex", "justify-content-end"]);
+    createButton.classList.remove("w-100");
+    createButtonContainer.append(createButton);
+    header.append(title, createButtonContainer);
 
     row.append(
         createColumn(createField("Название", nameInput), ["col-12", "col-lg-2"]),
@@ -73,11 +79,10 @@ function buildCreateCard() {
         createColumn(createField("API порт", apiPortInput), ["col-12", "col-lg-1"]),
         createColumn(createField("Bearer-токен", apiBearerTokenInput), ["col-12", "col-lg-3"]),
         createColumn(createField("Лимит пользователей", maxUsersInput), ["col-12", "col-lg-2"]),
-        createColumn(createCheckboxField("Активен", activeInput), ["col-12", "col-lg-1"]),
-        createColumn(createButton, ["col-12", "col-lg-1"])
+        createColumn(createCheckboxField("Активен", activeInput), ["col-12", "col-lg-2"])
     );
 
-    body.append(title, row);
+    body.append(header, row);
     section.append(body);
     return section;
 }
