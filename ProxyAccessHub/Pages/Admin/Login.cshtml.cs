@@ -42,8 +42,15 @@ public sealed class LoginModel : PageModel
     /// <summary>
     /// Обрабатывает открытие страницы.
     /// </summary>
-    public void OnGet()
+    /// <returns>Текущий результат обработки запроса.</returns>
+    public IActionResult OnGet()
     {
+        if (User.HasClaim(AdminAccessAuthenticationDefaults.ACCESS_CLAIM_TYPE, AdminAccessAuthenticationDefaults.ACCESS_CLAIM_VALUE))
+        {
+            return RedirectToPage("/Admin/Users");
+        }
+
+        return Page();
     }
 
     /// <summary>

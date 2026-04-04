@@ -35,7 +35,7 @@ async function loadTariffs() {
 function buildTariffsPageShell() {
     const wrapper = createElement("section", ["d-flex", "flex-column", "gap-4"]);
     wrapper.append(
-        buildPageHeader("Тарифы", "Создавайте и редактируйте тарифы, которые используются для новых подключений и продлений."),
+        buildPageHeader("Тарифы"),
         buildFeedbackContainer(),
         buildCreateCard(),
         buildTableCard()
@@ -47,8 +47,12 @@ function buildTariffsPageShell() {
 function buildCreateCard() {
     const section = createElement("section", ["card", "border-0", "shadow-sm"]);
     const body = createElement("div", ["card-body", "p-4"]);
-    const title = createElement("h2", ["h5", "mb-3"]);
+    const titleRow = createElement("div", ["d-flex", "flex-column", "flex-md-row", "justify-content-md-between", "align-items-md-center", "gap-3", "mb-3"]);
+    const title = createElement("h2", ["h5", "mb-0"]);
     title.textContent = "Новый тариф";
+    const createButton = createElement("button", ["btn", "btn-dark", "align-self-start", "align-self-md-center"]);
+    createButton.type = "button";
+    createButton.textContent = "Добавить тариф";
 
     const row = createElement("div", ["row", "g-3", "align-items-end"]);
     const nameInput = createInput("tariffCreateName", "tariffCreateName", "text");
@@ -58,9 +62,6 @@ function buildCreateCard() {
     const periodSelect = createPeriodSelect("tariffCreatePeriodMonths", "tariffCreatePeriodMonths", MONTHLY_PERIOD_MONTHS);
     const activeInput = createCheckbox("tariffCreateIsActive", "tariffCreateIsActive", true);
     const defaultInput = createCheckbox("tariffCreateIsDefault", "tariffCreateIsDefault", false);
-    const createButton = createElement("button", ["btn", "btn-dark", "w-100"]);
-    createButton.type = "button";
-    createButton.textContent = "Добавить тариф";
     createButton.addEventListener("click", async () => {
         await createTariff(nameInput, priceInput, periodSelect, activeInput, defaultInput);
     });
@@ -70,12 +71,12 @@ function buildCreateCard() {
         createColumn(createField("Стоимость, ₽", priceInput), ["col-12", "col-lg-2"]),
         createColumn(createField("Срок", periodSelect), ["col-12", "col-lg-2"]),
         createColumn(createCheckboxField("Активен", activeInput), ["col-12", "col-lg-2"]),
-        createColumn(createCheckboxField("По умолчанию", defaultInput), ["col-12", "col-lg-2"]),
-        createColumn(createButton, ["col-12", "col-lg-1"])
+        createColumn(createCheckboxField("По умолчанию", defaultInput), ["col-12", "col-lg-3"])
     );
 
     bindPeriodPriceState(periodSelect, priceInput);
-    body.append(title, row);
+    titleRow.append(title, createButton);
+    body.append(titleRow, row);
     section.append(body);
     return section;
 }
@@ -220,15 +221,13 @@ function updatePriceInputState(periodSelect, priceInput) {
     }
 }
 
-function buildPageHeader(titleText, descriptionText) {
+function buildPageHeader(titleText) {
     const header = createElement("section", ["d-flex", "flex-column", "gap-2"]);
     const badge = createElement("span", ["badge", "text-bg-dark", "align-self-start", "px-3", "py-2", "rounded-pill"]);
     badge.textContent = "Административная панель";
     const title = createElement("h1", ["h2", "mb-0"]);
     title.textContent = titleText;
-    const description = createElement("p", ["text-body-secondary", "mb-0"]);
-    description.textContent = descriptionText;
-    header.append(badge, title, description);
+    header.append(badge, title);
     return header;
 }
 

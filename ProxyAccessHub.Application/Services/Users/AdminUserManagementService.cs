@@ -127,6 +127,7 @@ public sealed class AdminUserManagementService(
         }
 
         await adminServerManagementService.CheckConnectionAsync(server.Id, cancellationToken);
+        await EnsureTelemtUserDoesNotExistAsync(server, normalizedTelemtUserId, cancellationToken);
 
         TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(tariffId, cancellationToken)
             ?? throw new KeyNotFoundException($"Тариф '{tariffId}' не найден.");
@@ -310,6 +311,31 @@ public sealed class AdminUserManagementService(
         return new TelemtCreatedUserResult(revision.Trim(), userSnapshot, secret);
     }
 
+    private async Task EnsureTelemtUserDoesNotExistAsync(ProxyServer server, string telemtUserId, CancellationToken cancellationToken)
+    {
+        HttpClient httpClient = httpClientFactory.CreateClient();
+        httpClient.Timeout = TimeSpan.FromSeconds(API_TIMEOUT_SECONDS);
+        Uri requestUri = BuildTelemtUserUri(server.Host, server.ApiPort, telemtUserId);
+        using HttpRequestMessage request = new(HttpMethod.Get, requestUri);
+        request.Headers.TryAddWithoutValidation("Authorization", BuildAuthorizationHeader(server.ApiBearerToken));
+
+        using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return;
+        }
+
+        string responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Пользователь '{telemtUserId}' уже существует на сервере '{server.Name}'.");
+        }
+
+        throw new InvalidOperationException($"Не удалось проверить уникальность пользователя '{telemtUserId}' на сервере '{server.Name}'. Код: {(int)response.StatusCode}. Ответ: {responseContent}");
+    }
+
     private static UserTariffSettings BuildCustomPriceSettings(TariffDefinition tariff, decimal customPeriodPriceRub)
     {
         if (!tariff.RequiresRenewal)
@@ -425,6 +451,26 @@ public sealed class AdminUserManagementService(
         }
 
         return new UriBuilder(apiScheme, apiHost, apiPort, "/v1/users").Uri;
+    }
+
+    private static Uri BuildTelemtUserUri(string host, int apiPort, string telemtUserId)
+    {
+        if (!TryExtractApiEndpoint(host, out string? apiScheme, out string? apiHost))
+        {
+            throw new InvalidOperationException($"Хост сервера '{host}' имеет неверный формат.");
+        }
+
+        if (apiPort is <= 0 or > 65535)
+        {
+            throw new InvalidOperationException("Порт API должен быть в диапазоне от 1 до 65535.");
+        }
+
+        if (string.IsNullOrWhiteSpace(telemtUserId))
+        {
+            throw new InvalidOperationException("Telemt userId не задан.");
+        }
+
+        return new UriBuilder(apiScheme, apiHost, apiPort, $"/v1/users/{Uri.EscapeDataString(telemtUserId)}").Uri;
     }
 
     private static string BuildAuthorizationHeader(string apiBearerToken)

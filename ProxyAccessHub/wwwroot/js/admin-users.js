@@ -800,13 +800,19 @@ function createHeaderContent(text, description = "") {
     const label = createElement("span");
     label.textContent = text;
 
-    const hint = createElement("span", ["d-inline-flex", "justify-content-center", "align-items-center", "border", "rounded-circle", "small", "fw-semibold"]);
-    hint.style.width = "1.25rem";
-    hint.style.height = "1.25rem";
+    const hint = createElement("button", ["btn", "btn-sm", "btn-outline-secondary", "rounded-circle", "d-inline-flex", "justify-content-center", "align-items-center", "fw-semibold", "p-0"]);
+    hint.type = "button";
+    hint.style.width = "1.5rem";
+    hint.style.height = "1.5rem";
     hint.style.lineHeight = "1";
-    hint.title = description;
+    hint.style.cursor = "pointer";
     hint.setAttribute("aria-label", description);
+    hint.setAttribute("data-bs-toggle", "popover");
+    hint.setAttribute("data-bs-trigger", "hover focus");
+    hint.setAttribute("data-bs-placement", "top");
+    hint.setAttribute("data-bs-content", description);
     hint.textContent = "?";
+    new bootstrap.Popover(hint);
 
     wrapper.append(label, hint);
     return wrapper;

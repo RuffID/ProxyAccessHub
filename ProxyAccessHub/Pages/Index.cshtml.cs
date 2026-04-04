@@ -84,6 +84,6 @@ public sealed class IndexModel(IOptions<UserAccessOptions> userAccessOptions) : 
         await HttpContext.SignOutAsync(UserAccessAuthenticationDefaults.AUTHENTICATION_SCHEME);
         await HttpContext.SignOutAsync(AdminAccessAuthenticationDefaults.AUTHENTICATION_SCHEME);
 
-        return RedirectToPage();
+        return RedirectToPage("/Admin/Login");
     }
 }
