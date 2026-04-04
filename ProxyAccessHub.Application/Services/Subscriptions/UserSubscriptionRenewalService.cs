@@ -46,20 +46,24 @@ public class UserSubscriptionRenewalService(
         {
             BalanceRub = calculation.RemainingBalanceRub,
             AccessPaidToUtc = calculation.AccessPaidToUtc,
-            IsUnlimited = tariff.IsUnlimited || user.IsUnlimited,
             ManualHandlingStatus = ManualHandlingStatus.NotRequired,
             ManualHandlingReason = null
         };
 
-        Subscription? updatedSubscription = BuildSubscription(updatedUser, currentSubscription, calculatedAtUtc, calculation);
+        Subscription? updatedSubscription = BuildSubscription(updatedUser, tariff, currentSubscription, calculatedAtUtc, calculation);
         return new UserSubscriptionRenewalResult(updatedUser, updatedSubscription, calculation);
     }
 
-    private static Subscription? BuildSubscription(ProxyUser updatedUser, Subscription? currentSubscription, DateTimeOffset calculatedAtUtc, TariffRenewalCalculationResult calculation)
+    private static Subscription? BuildSubscription(
+        ProxyUser updatedUser,
+        TariffDefinition tariff,
+        Subscription? currentSubscription,
+        DateTimeOffset calculatedAtUtc,
+        TariffRenewalCalculationResult calculation)
     {
         if (currentSubscription is null)
         {
-            if (!updatedUser.IsUnlimited && updatedUser.AccessPaidToUtc is null)
+            if (!tariff.IsUnlimited && updatedUser.AccessPaidToUtc is null)
             {
                 return null;
             }
@@ -71,14 +75,14 @@ public class UserSubscriptionRenewalService(
                 updatedUser.TariffId,
                 startedAtUtc,
                 updatedUser.AccessPaidToUtc,
-                updatedUser.IsUnlimited);
+                tariff.IsUnlimited);
         }
 
         return currentSubscription with
         {
             TariffId = updatedUser.TariffId,
             PaidToUtc = updatedUser.AccessPaidToUtc,
-            IsUnlimited = updatedUser.IsUnlimited
+            IsUnlimited = tariff.IsUnlimited
         };
     }
 }

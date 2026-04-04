@@ -93,16 +93,11 @@ public class ProxyUserRepository(
             DiscountPercent = user.TariffSettings?.DiscountPercent,
             BalanceRub = user.BalanceRub,
             AccessPaidToUtc = user.AccessPaidToUtc,
-            IsUnlimited = user.IsUnlimited,
             ManualHandlingStatus = user.ManualHandlingStatus,
             ManualHandlingReason = user.ManualHandlingReason,
             UserAdTag = user.UserAdTag,
             MaxTcpConnections = user.MaxTcpConnections,
-            DataQuotaBytes = user.DataQuotaBytes,
             MaxUniqueIps = user.MaxUniqueIps,
-            CurrentConnections = user.CurrentConnections,
-            ActiveUniqueIps = user.ActiveUniqueIps,
-            TotalOctets = user.TotalOctets,
             TelemtRevision = user.TelemtRevision,
             LastSyncedAtUtc = user.LastSyncedAtUtc
         };
@@ -124,16 +119,11 @@ public class ProxyUserRepository(
             tariffSettings,
             entity.BalanceRub,
             entity.AccessPaidToUtc,
-            entity.IsUnlimited,
             entity.ManualHandlingStatus,
             entity.ManualHandlingReason,
             entity.UserAdTag,
             entity.MaxTcpConnections,
-            entity.DataQuotaBytes,
             entity.MaxUniqueIps,
-            entity.CurrentConnections,
-            entity.ActiveUniqueIps,
-            entity.TotalOctets,
             entity.TelemtRevision,
             entity.LastSyncedAtUtc);
     }
@@ -153,6 +143,7 @@ public class ProxyUserRepository(
         RequireValue(user.TelemtUserId, nameof(user.TelemtUserId));
         RequireValue(user.ProxyLink, nameof(user.ProxyLink));
         RequireValue(user.ProxyLinkLookupKey, nameof(user.ProxyLinkLookupKey));
+
         if (user.TariffId == Guid.Empty)
         {
             throw new InvalidOperationException("Идентификатор тарифа пользователя не задан.");

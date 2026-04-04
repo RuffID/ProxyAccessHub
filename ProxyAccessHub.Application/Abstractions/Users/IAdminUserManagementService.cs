@@ -10,6 +10,7 @@ public interface IAdminUserManagementService
     /// <summary>
     /// Возвращает данные для страницы списка пользователей администратора.
     /// </summary>
+    /// <param name="onlyManualHandling">Флаг отбора только пользователей с ручной обработкой.</param>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Данные для отображения списка пользователей и доступных тарифов.</returns>
     Task<AdminUsersPageData> GetPageDataAsync(bool onlyManualHandling, CancellationToken cancellationToken = default);
@@ -36,6 +37,22 @@ public interface IAdminUserManagementService
     Task UpdateUserTariffAsync(
         Guid userId,
         Guid tariffId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Создаёт пользователя через административный интерфейс.
+    /// </summary>
+    /// <param name="telemtUserId">Идентификатор пользователя в telemt.</param>
+    /// <param name="serverId">Идентификатор выбранного сервера.</param>
+    /// <param name="tariffId">Идентификатор назначаемого тарифа.</param>
+    /// <param name="customPeriodPriceRub">Индивидуальная цена периода в рублях.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Задача завершения операции.</returns>
+    Task CreateUserAsync(
+        string telemtUserId,
+        Guid serverId,
+        Guid tariffId,
+        decimal? customPeriodPriceRub,
         CancellationToken cancellationToken = default);
 
     /// <summary>

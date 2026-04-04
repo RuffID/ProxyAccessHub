@@ -25,10 +25,18 @@ public interface IAdminServerManagementService
     Task UpdateAsync(Guid id, string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Проверяет доступность сервера по сохранённому хосту.
+    /// Проверяет доступность сервера по сохранённым настройкам telemt API.
     /// </summary>
     /// <param name="id">Идентификатор сервера.</param>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Задача завершения операции.</returns>
     Task CheckConnectionAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Удаляет сервер, если к нему не привязаны пользователи.
+    /// </summary>
+    /// <param name="id">Идентификатор сервера.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Задача завершения операции.</returns>
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }

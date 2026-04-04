@@ -99,13 +99,27 @@ public sealed class ServersModel(IAdminServerManagementService adminServerManage
     /// <summary>
     /// Проверяет связь с сервером.
     /// </summary>
-    /// <param name="id">Идентификатор сервера.</param>
-    /// <returns>JSON-результат операции.</returns>
     public async Task<IActionResult> OnPostCheckConnectionAsync(Guid id)
     {
         try
         {
             await adminServerManagementService.CheckConnectionAsync(id, HttpContext.RequestAborted);
+            return CreateSuccessResult();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
+        {
+            return CreateErrorResult(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Удаляет сервер.
+    /// </summary>
+    public async Task<IActionResult> OnPostDeleteAsync(Guid id)
+    {
+        try
+        {
+            await adminServerManagementService.DeleteAsync(id, HttpContext.RequestAborted);
             return CreateSuccessResult();
         }
         catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)

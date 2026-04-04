@@ -111,6 +111,22 @@ public class AdminServerManagementService(
         }
     }
 
+    /// <inheritdoc />
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(id, cancellationToken)
+            ?? throw new KeyNotFoundException("Сервер не найден.");
+        bool hasUsers = (await unitOfWork.Users.GetAllAsync(cancellationToken)).Any(user => user.ServerId == id);
+
+        if (hasUsers)
+        {
+            throw new InvalidOperationException($"Нельзя удалить сервер '{server.Name}', потому что к нему привязан хотя бы один пользователь.");
+        }
+
+        await unitOfWork.Servers.DeleteAsync(id, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
     private static void ValidateServer(
         string name,
         string host,

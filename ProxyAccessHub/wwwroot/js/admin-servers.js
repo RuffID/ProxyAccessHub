@@ -32,7 +32,7 @@ async function loadServers() {
 function buildServersPageShell() {
     const wrapper = createElement("section", ["d-flex", "flex-column", "gap-4"]);
     wrapper.append(
-        buildPageHeader("Серверы", "Управление серверами выполняется полностью из базы данных."),
+        buildPageHeader("Серверы"),
         buildFeedbackContainer(),
         buildCreateCard(),
         buildTableCard()
@@ -45,7 +45,7 @@ function buildCreateCard() {
     const section = createElement("section", ["card", "border-0", "shadow-sm"]);
     const body = createElement("div", ["card-body", "p-4"]);
     const header = createElement("div", ["d-flex", "align-items-center", "justify-content-between", "gap-3", "mb-3"]);
-    const title = createElement("h2", ["h5", "mb-3"]);
+    const title = createElement("h2", ["h5", "mb-0"]);
     title.textContent = "Новый сервер";
 
     const row = createElement("div", ["row", "g-3", "align-items-end"]);
@@ -61,15 +61,14 @@ function buildCreateCard() {
     maxUsersInput.step = "1";
     maxUsersInput.value = "50";
     const activeInput = createCheckbox("serverCreateIsActive", "serverCreateIsActive", true);
-    const createButton = createElement("button", ["btn", "btn-dark", "w-100"]);
+    const createButton = createElement("button", ["btn", "btn-dark"]);
     createButton.type = "button";
     createButton.textContent = "Добавить сервер";
     createButton.addEventListener("click", async () => {
         await createServer(nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput);
     });
-    title.classList.remove("mb-3");
+
     const createButtonContainer = createElement("div", ["d-flex", "justify-content-end"]);
-    createButton.classList.remove("w-100");
     createButtonContainer.append(createButton);
     header.append(title, createButtonContainer);
 
@@ -141,18 +140,27 @@ function buildServerRow(server) {
     const actions = createElement("div", ["d-flex", "flex-wrap", "gap-2"]);
     const saveButton = createElement("button", ["btn", "btn-outline-dark", "btn-sm"]);
     const checkButton = createElement("button", ["btn", "btn-outline-secondary", "btn-sm"]);
+    const deleteButton = createElement("button", ["btn", "btn-outline-danger", "btn-sm"]);
+
     saveButton.type = "button";
     saveButton.textContent = "Сохранить";
     saveButton.addEventListener("click", async () => {
         await updateServer(server.id, nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput);
     });
+
     checkButton.type = "button";
     checkButton.textContent = "Проверить связь";
     checkButton.addEventListener("click", async () => {
         await checkServerConnection(server, checkButton);
     });
 
-    actions.append(saveButton, checkButton);
+    deleteButton.type = "button";
+    deleteButton.textContent = "Удалить";
+    deleteButton.addEventListener("click", async () => {
+        await deleteServer(server, deleteButton);
+    });
+
+    actions.append(saveButton, checkButton, deleteButton);
 
     row.append(
         createCell(nameInput),
@@ -220,7 +228,31 @@ async function checkServerConnection(server, button) {
     }
 }
 
-function buildPageHeader(titleText, descriptionText) {
+async function deleteServer(server, button) {
+    if (!window.confirm(`Удалить сервер '${server.name}'?`)) {
+        return;
+    }
+
+    button.disabled = true;
+    clearFeedback();
+
+    try {
+        const url = `/Admin/Servers?handler=Delete&id=${encodeURIComponent(server.id)}`;
+        const response = await sendJsonRequest(url, "POST", buildJsonHeaders(antiforgeryToken));
+        unwrapOrThrow(response, "Не удалось удалить сервер.");
+
+        showFeedback(`Сервер '${server.name}' удалён.`, "success");
+        await loadServers();
+    }
+    catch (error) {
+        showFeedback(error.message, "danger");
+    }
+    finally {
+        button.disabled = false;
+    }
+}
+
+function buildPageHeader(titleText) {
     const header = createElement("section", ["d-flex", "flex-column", "gap-2"]);
     const badge = createElement("span", ["badge", "text-bg-dark", "align-self-start", "px-3", "py-2", "rounded-pill"]);
     badge.textContent = "Административная панель";
@@ -228,10 +260,7 @@ function buildPageHeader(titleText, descriptionText) {
     const title = createElement("h1", ["h2", "mb-0"]);
     title.textContent = titleText;
 
-    const description = createElement("p", ["text-body-secondary", "mb-0"]);
-    description.textContent = descriptionText;
-
-    header.append(badge, title, description);
+    header.append(badge, title);
     return header;
 }
 

@@ -101,6 +101,20 @@ public class ProxyServerRepository(
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        ProxyServerEntity? entity = await dbContext.Set<ProxyServerEntity>()
+            .SingleOrDefaultAsync(server => server.Id == id, cancellationToken);
+
+        if (entity is null)
+        {
+            throw new KeyNotFoundException("Сервер не найден.");
+        }
+
+        dbContext.Set<ProxyServerEntity>().Remove(entity);
+    }
+
     private static ProxyServerEntity Map(ProxyServer server)
     {
         return new ProxyServerEntity

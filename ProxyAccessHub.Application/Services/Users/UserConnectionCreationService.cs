@@ -55,16 +55,11 @@ public sealed class UserConnectionCreationService(
             null,
             0m,
             null,
-            tariff.IsUnlimited,
             ManualHandlingStatus.NotRequired,
             null,
             null,
             null,
             null,
-            null,
-            0,
-            0,
-            0,
             PendingConnectionUserConventions.GetPendingRevision(),
             createdAtUtc);
 
@@ -182,16 +177,11 @@ public sealed class UserConnectionCreationService(
             ProxyLink = proxyLink,
             ProxyLinkLookupKey = proxyLookupKey,
             AccessPaidToUtc = createdUser.User.ExpirationUtc,
-            IsUnlimited = tariff.IsUnlimited,
             ManualHandlingStatus = ManualHandlingStatus.NotRequired,
             ManualHandlingReason = null,
             UserAdTag = createdUser.User.UserAdTag,
             MaxTcpConnections = createdUser.User.MaxTcpConnections,
-            DataQuotaBytes = createdUser.User.DataQuotaBytes,
             MaxUniqueIps = createdUser.User.MaxUniqueIps,
-            CurrentConnections = createdUser.User.CurrentConnections,
-            ActiveUniqueIps = createdUser.User.ActiveUniqueIps,
-            TotalOctets = createdUser.User.TotalOctets,
             TelemtRevision = createdUser.Revision,
             LastSyncedAtUtc = paidAtUtc
         };
@@ -201,7 +191,7 @@ public sealed class UserConnectionCreationService(
             updatedUser.TariffId,
             paidAtUtc,
             updatedUser.AccessPaidToUtc,
-            updatedUser.IsUnlimited);
+            tariff.IsUnlimited);
 
         return new NewConnectionProvisioningResult(updatedUser, createdSubscription);
     }

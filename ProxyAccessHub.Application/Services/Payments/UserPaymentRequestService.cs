@@ -30,7 +30,7 @@ public class UserPaymentRequestService(
         TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
             ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
 
-        if (!tariff.RequiresRenewal || tariff.IsUnlimited || user.IsUnlimited)
+        if (!tariff.RequiresRenewal || tariff.IsUnlimited)
         {
             throw new InvalidOperationException("Для безлимитного тарифа онлайн-оплата продления не требуется.");
         }

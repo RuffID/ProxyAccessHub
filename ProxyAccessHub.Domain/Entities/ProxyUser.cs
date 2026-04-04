@@ -15,16 +15,11 @@ namespace ProxyAccessHub.Domain.Entities;
 /// <param name="TariffSettings">Индивидуальные настройки тарифа пользователя.</param>
 /// <param name="BalanceRub">Текущий баланс пользователя в рублях.</param>
 /// <param name="AccessPaidToUtc">Дата оплаченного доступа в UTC.</param>
-/// <param name="IsUnlimited">Признак безлимитного доступа пользователя.</param>
 /// <param name="ManualHandlingStatus">Статус ручной обработки.</param>
 /// <param name="ManualHandlingReason">Причина перевода в ручную обработку.</param>
 /// <param name="UserAdTag">Служебный тег пользователя в telemt.</param>
 /// <param name="MaxTcpConnections">Лимит TCP-подключений пользователя.</param>
-/// <param name="DataQuotaBytes">Лимит трафика пользователя в байтах.</param>
 /// <param name="MaxUniqueIps">Лимит уникальных IP пользователя.</param>
-/// <param name="CurrentConnections">Текущее количество подключений пользователя.</param>
-/// <param name="ActiveUniqueIps">Текущее количество активных уникальных IP.</param>
-/// <param name="TotalOctets">Накопленный объём трафика пользователя в октетах.</param>
 /// <param name="TelemtRevision">Ревизия telemt на момент последней синхронизации.</param>
 /// <param name="LastSyncedAtUtc">Дата последней синхронизации пользователя в UTC.</param>
 public record ProxyUser(
@@ -37,15 +32,10 @@ public record ProxyUser(
     UserTariffSettings? TariffSettings,
     decimal BalanceRub,
     DateTimeOffset? AccessPaidToUtc,
-    bool IsUnlimited,
     ManualHandlingStatus ManualHandlingStatus,
     string? ManualHandlingReason,
     string? UserAdTag,
     int? MaxTcpConnections,
-    long? DataQuotaBytes,
     int? MaxUniqueIps,
-    int CurrentConnections,
-    int ActiveUniqueIps,
-    long TotalOctets,
     string TelemtRevision,
     DateTimeOffset LastSyncedAtUtc);

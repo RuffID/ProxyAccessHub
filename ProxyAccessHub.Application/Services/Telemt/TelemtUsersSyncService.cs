@@ -121,7 +121,6 @@ public class TelemtUsersSyncService(
         string primaryProxyLink = PendingConnectionUserConventions.SelectPrimaryProxyLink(telemtUser.Links);
         string proxyLookupKey = PendingConnectionUserConventions.BuildProxyLookupKey(primaryProxyLink);
         Guid tariffId = existingUser?.TariffId ?? defaultTariff.Id;
-        bool isUnlimited = existingUser?.IsUnlimited ?? defaultTariff.IsUnlimited;
 
         return new ProxyUser(
             existingUser?.Id ?? Guid.NewGuid(),
@@ -133,16 +132,11 @@ public class TelemtUsersSyncService(
             existingUser?.TariffSettings,
             existingUser?.BalanceRub ?? 0m,
             telemtUser.ExpirationUtc,
-            isUnlimited,
             existingUser?.ManualHandlingStatus ?? ManualHandlingStatus.NotRequired,
             existingUser?.ManualHandlingReason,
             telemtUser.UserAdTag,
             telemtUser.MaxTcpConnections,
-            telemtUser.DataQuotaBytes,
             telemtUser.MaxUniqueIps,
-            telemtUser.CurrentConnections,
-            telemtUser.ActiveUniqueIps,
-            telemtUser.TotalOctets,
             revision,
             syncedAtUtc);
     }

@@ -80,7 +80,7 @@ public class UserRenewalLookupService(
             tariff.Name,
             user.BalanceRub,
             user.AccessPaidToUtc,
-            tariff.IsUnlimited || user.IsUnlimited,
+            tariff.IsUnlimited,
             tariff.PeriodMonths,
             amountRequiredRub,
             searchKind);

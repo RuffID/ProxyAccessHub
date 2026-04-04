@@ -18,7 +18,6 @@ public sealed class UsersModel(IAdminUserManagementService adminUserManagementSe
     /// <summary>
     /// Возвращает данные страницы пользователей для AJAX-интерфейса.
     /// </summary>
-    /// <returns>JSON с данными пользователей и статусом синхронизации.</returns>
     public async Task<IActionResult> OnGetDataAsync()
     {
         AdminUsersPageData pageData = await adminUserManagementService.GetPageDataAsync(false, HttpContext.RequestAborted);
@@ -29,11 +28,42 @@ public sealed class UsersModel(IAdminUserManagementService adminUserManagementSe
     }
 
     /// <summary>
+    /// Создаёт пользователя.
+    /// </summary>
+    public async Task<IActionResult> OnPostCreateAsync(string telemtUserId, Guid serverId, Guid tariffId, string? customPriceRub)
+    {
+        decimal? parsedCustomPriceRub = null;
+
+        if (!string.IsNullOrWhiteSpace(customPriceRub))
+        {
+            if (!decimal.TryParse(customPriceRub, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal customPriceValue))
+            {
+                return CreateErrorResult(StatusCodes.Status400BadRequest, "Кастомная цена имеет неверный числовой формат.");
+            }
+
+            parsedCustomPriceRub = customPriceValue;
+        }
+
+        try
+        {
+            await adminUserManagementService.CreateUserAsync(
+                telemtUserId,
+                serverId,
+                tariffId,
+                parsedCustomPriceRub,
+                HttpContext.RequestAborted);
+
+            return CreateSuccessResult();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
+        {
+            return CreateErrorResult(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    /// <summary>
     /// Обновляет индивидуальную цену периода для пользователя.
     /// </summary>
-    /// <param name="userId">Локальный идентификатор пользователя.</param>
-    /// <param name="priceRub">Новое значение цены периода в рублях.</param>
-    /// <returns>JSON-результат операции.</returns>
     public async Task<IActionResult> OnPostUpdateTariffPriceAsync(Guid userId, string priceRub)
     {
         if (!decimal.TryParse(priceRub, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal parsedPriceRub))
@@ -55,9 +85,6 @@ public sealed class UsersModel(IAdminUserManagementService adminUserManagementSe
     /// <summary>
     /// Обновляет назначенный пользователю тариф.
     /// </summary>
-    /// <param name="userId">Локальный идентификатор пользователя.</param>
-    /// <param name="tariffId">Идентификатор нового тарифа.</param>
-    /// <returns>JSON-результат операции.</returns>
     public async Task<IActionResult> OnPostUpdateTariffAsync(Guid userId, Guid tariffId)
     {
         try
