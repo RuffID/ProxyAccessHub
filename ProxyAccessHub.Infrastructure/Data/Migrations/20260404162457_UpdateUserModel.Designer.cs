@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ProxyAccessHub.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using ProxyAccessHub.Infrastructure.Data;
 namespace ProxyAccessHub.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ProxyAccessHubDbContext))]
-    partial class ProxyAccessHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260404162457_UpdateUserModel")]
+    partial class UpdateUserModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -299,57 +302,6 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Tariffs", (string)null);
-                });
-
-            modelBuilder.Entity("ProxyAccessHub.Infrastructure.Data.Entities.UserTariffAssignmentEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AssignedBy")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset?>("EndedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("IsTrial")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid?>("NextTariffId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("StartedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("TariffId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int?>("TrialDurationDays")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsTrial", "EndedAtUtc");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("UserId", "EndedAtUtc")
-                        .IsUnique()
-                        .HasFilter("[EndedAtUtc] IS NULL");
-
-                    b.ToTable("UserTariffAssignments", (string)null);
                 });
 #pragma warning restore 612, 618
         }

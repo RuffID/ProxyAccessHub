@@ -18,4 +18,16 @@ internal sealed class TelemtCreateUserRequest
     /// </summary>
     [JsonPropertyName("expiration_rfc3339")]
     public string ExpirationRfc3339 { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Лимит TCP-подключений.
+    /// </summary>
+    [JsonPropertyName("max_tcp_conns")]
+    public int MaxTcpConnections { get; set; }
+
+    /// <summary>
+    /// Лимит уникальных IP.
+    /// </summary>
+    [JsonPropertyName("max_unique_ips")]
+    public int MaxUniqueIps { get; set; }
 }

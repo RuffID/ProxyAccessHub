@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRenewalLookupService, UserRenewalLookupService>();
         services.AddScoped<IUserConnectionCreationService, UserConnectionCreationService>();
         services.AddScoped<IAdminUserManagementService, AdminUserManagementService>();
+        services.AddScoped<ITrialTariffTransitionService, TrialTariffTransitionService>();
         services.AddScoped<IAdminTariffManagementService, AdminTariffManagementService>();
         services.AddScoped<IAdminServerManagementService, AdminServerManagementService>();
 

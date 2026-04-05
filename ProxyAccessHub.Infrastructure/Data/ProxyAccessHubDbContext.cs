@@ -39,6 +39,11 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
     public DbSet<SubscriptionEntity> Subscriptions => Set<SubscriptionEntity>();
 
     /// <summary>
+    /// История назначений тарифов пользователей.
+    /// </summary>
+    public DbSet<UserTariffAssignmentEntity> UserTariffAssignments => Set<UserTariffAssignmentEntity>();
+
+    /// <summary>
     /// Настраивает схему базы данных приложения.
     /// </summary>
     /// <param name="modelBuilder">Построитель модели.</param>
@@ -53,6 +58,7 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
             builder.Property(entity => entity.Host).HasMaxLength(256).IsRequired();
             builder.Property(entity => entity.ApiPort).IsRequired();
             builder.Property(entity => entity.ApiBearerToken).HasMaxLength(1024).IsRequired();
+            builder.Property(entity => entity.SyncIntervalMinutes).IsRequired();
             builder.HasIndex(entity => entity.Code).IsUnique();
         });
 
@@ -74,6 +80,7 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
             builder.Property(entity => entity.CustomPeriodPriceRub).HasPrecision(18, 2);
             builder.Property(entity => entity.DiscountPercent).HasPrecision(5, 2);
             builder.Property(entity => entity.BalanceRub).HasPrecision(18, 2);
+            builder.Property(entity => entity.IsTelemtAccessActive).IsRequired();
             builder.Property(entity => entity.ManualHandlingReason).HasMaxLength(1024);
             builder.Property(entity => entity.UserAdTag).HasMaxLength(64);
             builder.Property(entity => entity.TelemtRevision).HasMaxLength(128).IsRequired();
@@ -104,6 +111,19 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
             builder.ToTable("Subscriptions");
             builder.HasKey(entity => entity.Id);
             builder.HasIndex(entity => entity.UserId).IsUnique();
+        });
+
+        modelBuilder.Entity<UserTariffAssignmentEntity>(builder =>
+        {
+            builder.ToTable("UserTariffAssignments");
+            builder.HasKey(entity => entity.Id);
+            builder.Property(entity => entity.Comment).HasMaxLength(1024);
+            builder.Property(entity => entity.AssignedBy).HasMaxLength(256);
+            builder.HasIndex(entity => new { entity.UserId, entity.EndedAtUtc })
+                .HasFilter("[EndedAtUtc] IS NULL")
+                .IsUnique();
+            builder.HasIndex(entity => new { entity.IsTrial, entity.EndedAtUtc });
+            builder.HasIndex(entity => entity.UserId);
         });
     }
 }

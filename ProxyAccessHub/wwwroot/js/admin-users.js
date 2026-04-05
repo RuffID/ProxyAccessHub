@@ -16,9 +16,20 @@ let createUserPriceInput;
 let createUserPriceNote;
 let createUserSubmitButton;
 let createUserBackdrop;
+let assignTrialModal;
+let assignTrialForm;
+let assignTrialModalFeedback;
+let assignTrialUserName;
+let assignTrialTariffSelect;
+let assignTrialDurationInput;
+let assignTrialNextTariffSelect;
+let assignTrialCommentInput;
+let assignTrialSubmitButton;
+let assignTrialBackdrop;
 let state = {
     pageData: null,
-    filteredUsers: []
+    filteredUsers: [],
+    selectedTrialUser: null
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -47,6 +58,7 @@ async function loadPageData() {
         populateServerFilter();
         applyFilters();
         syncCreateUserModalOptions();
+        syncAssignTrialModalOptions();
     }
     catch (error) {
         showFeedback(error.message, "danger");
@@ -64,7 +76,8 @@ function buildPageShell() {
         buildFeedbackContainer(),
         buildFiltersCard(),
         buildTableCard(),
-        buildCreateUserModal()
+        buildCreateUserModal(),
+        buildAssignTrialModal()
     );
 
     pageRoot.replaceChildren(wrapper);
@@ -137,11 +150,13 @@ function buildTableCard() {
     const headRow = createElement("tr");
     const headings = [
         createHeaderContent("Telemt userId", "Идентификатор пользователя в telemt. По нему пользователя можно найти и сопоставить с записью в локальной базе."),
+        createHeaderContent("TG URL", "Ссылка подключения пользователя. Кнопка копирует URL в буфер обмена."),
         createHeaderContent("Сервер"),
         createHeaderContent("Тариф"),
         createHeaderContent("Баланс"),
         createHeaderContent("Оплачено до", "Дата и время, до которых у пользователя оплачен доступ. Если значение пустое, оплаченного периода сейчас нет."),
-        createHeaderContent("Ручная обработка", "Показывает, требуется ли вмешательство администратора из-за проблем синхронизации или несогласованных данных.")
+        createHeaderContent("Ручная обработка", "Показывает, требуется ли вмешательство администратора из-за проблем синхронизации или несогласованных данных."),
+        createHeaderContent("Действия")
     ];
 
     for (const heading of headings) {
@@ -256,6 +271,95 @@ function buildCreateUserModal() {
     return createUserModal;
 }
 
+function buildAssignTrialModal() {
+    assignTrialModal = createElement("div", ["modal", "fade"]);
+    assignTrialModal.id = "assignTrialModal";
+    assignTrialModal.tabIndex = -1;
+    assignTrialModal.setAttribute("aria-hidden", "true");
+
+    const dialog = createElement("div", ["modal-dialog", "modal-dialog-centered"]);
+    const content = createElement("div", ["modal-content", "border-0", "shadow"]);
+    const header = createElement("div", ["modal-header"]);
+    const title = createElement("h2", ["modal-title", "fs-5"]);
+    title.textContent = "Назначить пробный период";
+
+    const closeButton = createElement("button", ["btn-close"]);
+    closeButton.type = "button";
+    closeButton.setAttribute("aria-label", "Закрыть");
+    closeButton.addEventListener("click", () => {
+        closeAssignTrialModal();
+    });
+
+    header.append(title, closeButton);
+
+    assignTrialForm = createElement("form", ["modal-body", "d-flex", "flex-column", "gap-3"]);
+    assignTrialForm.id = "assignTrialForm";
+    assignTrialForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        await handleAssignTrialSubmit();
+    });
+
+    assignTrialModalFeedback = createElement("div", ["d-none"]);
+    assignTrialUserName = createElement("div", ["small", "text-body-secondary"]);
+    assignTrialUserName.id = "assignTrialUserName";
+
+    assignTrialTariffSelect = createSelectField("assignTrialTariffId", "assignTrialTariffId", "Тариф пробного периода");
+    assignTrialTariffSelect.required = true;
+
+    assignTrialDurationInput = createElement("input", ["form-control"]);
+    assignTrialDurationInput.type = "number";
+    assignTrialDurationInput.id = "assignTrialDurationDays";
+    assignTrialDurationInput.name = "assignTrialDurationDays";
+    assignTrialDurationInput.min = "1";
+    assignTrialDurationInput.step = "1";
+    assignTrialDurationInput.inputMode = "numeric";
+    assignTrialDurationInput.required = true;
+
+    assignTrialNextTariffSelect = createSelectField("assignTrialNextTariffId", "assignTrialNextTariffId", "Следующий тариф");
+    assignTrialNextTariffSelect.required = true;
+
+    assignTrialCommentInput = createElement("input", ["form-control"]);
+    assignTrialCommentInput.type = "text";
+    assignTrialCommentInput.id = "assignTrialComment";
+    assignTrialCommentInput.name = "assignTrialComment";
+    assignTrialCommentInput.maxLength = 1024;
+    assignTrialCommentInput.placeholder = "Необязательный комментарий";
+
+    assignTrialForm.append(
+        assignTrialModalFeedback,
+        createFieldWrapper("Пользователь", assignTrialUserName),
+        createFieldWrapper("Тариф пробного периода", assignTrialTariffSelect),
+        createFieldWrapper("Длительность, дней", assignTrialDurationInput),
+        createFieldWrapper("Тариф после пробного периода", assignTrialNextTariffSelect),
+        createFieldWrapper("Комментарий", assignTrialCommentInput)
+    );
+
+    const footer = createElement("div", ["modal-footer"]);
+    const cancelButton = createElement("button", ["btn", "btn-outline-secondary"]);
+    cancelButton.type = "button";
+    cancelButton.textContent = "Отмена";
+    cancelButton.addEventListener("click", () => {
+        closeAssignTrialModal();
+    });
+
+    assignTrialSubmitButton = createElement("button", ["btn", "btn-dark"]);
+    assignTrialSubmitButton.type = "submit";
+    assignTrialSubmitButton.setAttribute("form", "assignTrialForm");
+    assignTrialSubmitButton.textContent = "Назначить";
+
+    footer.append(cancelButton, assignTrialSubmitButton);
+    content.append(header, assignTrialForm, footer);
+    dialog.append(content);
+    assignTrialModal.append(dialog);
+    assignTrialModal.addEventListener("click", event => {
+        if (event.target === assignTrialModal) {
+            closeAssignTrialModal();
+        }
+    });
+
+    return assignTrialModal;
+}
+
 function populateServerFilter() {
     const optionNodes = [];
     const defaultOption = createElement("option");
@@ -313,6 +417,37 @@ function syncCreateUserModalOptions() {
     updateCreateUserPriceFieldState();
 }
 
+function syncAssignTrialModalOptions() {
+    if (!assignTrialTariffSelect || !assignTrialNextTariffSelect) {
+        return;
+    }
+
+    const trialOptions = [];
+    const nextTariffOptions = [];
+
+    for (const collection of [trialOptions, nextTariffOptions]) {
+        const defaultOption = createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "Выберите тариф";
+        collection.push(defaultOption);
+    }
+
+    for (const tariff of state.pageData?.tariffs ?? []) {
+        const trialOption = createElement("option");
+        trialOption.value = tariff.id;
+        trialOption.textContent = tariff.name;
+        trialOptions.push(trialOption);
+
+        const nextOption = createElement("option");
+        nextOption.value = tariff.id;
+        nextOption.textContent = tariff.name;
+        nextTariffOptions.push(nextOption);
+    }
+
+    assignTrialTariffSelect.replaceChildren(...trialOptions);
+    assignTrialNextTariffSelect.replaceChildren(...nextTariffOptions);
+}
+
 function applyFilters() {
     if (!state.pageData) {
         return;
@@ -352,11 +487,13 @@ function buildUserRow(user) {
 
     row.append(
         createTextCell(user.telemtUserId, ["fw-semibold", "text-nowrap"]),
+        buildProxyLinkCell(user),
         createTextCell(user.serverName, ["text-nowrap"]),
         buildTariffCell(user),
         createTextCell(formatMoney(user.balanceRub)),
         createTextCell(formatDateTime(user.accessPaidToUtc, "Не оплачено"), ["text-nowrap"]),
-        buildManualHandlingCell(user)
+        buildManualHandlingCell(user),
+        buildUserActionsCell(user)
     );
 
     return row;
@@ -369,7 +506,6 @@ function buildTariffCell(user) {
     const inputGroup = createElement("div", ["input-group", "input-group-sm"]);
     const input = createElement("input", ["form-control"]);
     const suffix = createElement("span", ["input-group-text"]);
-    const note = createElement("div", ["small", "text-body-secondary"]);
 
     input.type = "number";
     input.min = "0.01";
@@ -396,11 +532,32 @@ function buildTariffCell(user) {
 
     suffix.textContent = "₽";
 
-    updateTariffPriceNote(user, note);
-
     inputGroup.append(input, suffix);
-    wrapper.append(tariffSelect, inputGroup, note);
+    wrapper.append(tariffSelect, inputGroup);
+
+    if (user.hasActiveTrial === true) {
+        const trialBadge = createElement("span", ["badge", "bg-white", "text-dark", "border", "border-dark", "fw-bold", "align-self-start"]);
+        trialBadge.textContent = "Пробный период";
+        wrapper.append(trialBadge);
+    }
+    else if (user.hasTrialHistory === true) {
+        const historyInfo = createElement("div", ["small", "text-body-secondary"]);
+        historyInfo.textContent = "В истории пользователя уже был пробный период.";
+        wrapper.append(historyInfo);
+    }
     cell.append(wrapper);
+    return cell;
+}
+
+function buildProxyLinkCell(user) {
+    const cell = createElement("td", ["px-3", "py-3", "text-nowrap"]);
+    const button = createElement("button", ["btn", "btn-outline-secondary", "btn-sm"]);
+    button.type = "button";
+    button.textContent = "Копировать";
+    button.addEventListener("click", async () => {
+        await copyProxyLink(user, button);
+    });
+    cell.append(button);
     return cell;
 }
 
@@ -445,6 +602,44 @@ function buildManualHandlingCell(user) {
     }
 
     cell.append(wrapper);
+    return cell;
+}
+
+function buildUserActionsCell(user) {
+    const cell = createElement("td", ["px-3", "py-3"]);
+    const actions = createElement("div", ["d-flex", "flex-wrap", "gap-2"]);
+    const trialButton = createElement("button", ["btn", "btn-outline-dark", "btn-sm"]);
+    trialButton.type = "button";
+    trialButton.textContent = "Пробный период";
+    trialButton.disabled = user.hasActiveTrial === true;
+    trialButton.addEventListener("click", () => {
+        openAssignTrialModal(user);
+    });
+
+    actions.append(trialButton);
+
+    if (user.isTelemtAccessActive === true) {
+        const deactivateButton = createElement("button", ["btn", "btn-outline-danger", "btn-sm"]);
+        deactivateButton.type = "button";
+        deactivateButton.textContent = "Деактивировать";
+        deactivateButton.addEventListener("click", async () => {
+            await updateTelemtAccess(user, "Deactivate", deactivateButton, `Пользователь ${user.telemtUserId} деактивирован в telemt.`);
+        });
+
+        actions.append(deactivateButton);
+    }
+    else {
+        const activateButton = createElement("button", ["btn", "btn-outline-success", "btn-sm"]);
+        activateButton.type = "button";
+        activateButton.textContent = "Активировать";
+        activateButton.addEventListener("click", async () => {
+            await updateTelemtAccess(user, "Activate", activateButton, `Пользователь ${user.telemtUserId} активирован в telemt.`);
+        });
+
+        actions.append(activateButton);
+    }
+
+    cell.append(actions);
     return cell;
 }
 
@@ -687,6 +882,129 @@ function resolveCreateUserCustomPrice(selectedTariff, normalizedPrice) {
     return normalizedPrice === defaultPrice ? null : normalizedPrice;
 }
 
+function openAssignTrialModal(user) {
+    state.selectedTrialUser = user;
+    resetAssignTrialModal(user);
+    assignTrialModal.classList.add("show", "d-block");
+    assignTrialModal.removeAttribute("aria-hidden");
+    document.body.classList.add("modal-open");
+    document.body.append(buildAssignTrialBackdrop());
+    assignTrialDurationInput.focus();
+}
+
+function closeAssignTrialModal() {
+    assignTrialModal.classList.remove("show", "d-block");
+    assignTrialModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+    state.selectedTrialUser = null;
+
+    if (assignTrialBackdrop) {
+        assignTrialBackdrop.remove();
+        assignTrialBackdrop = null;
+    }
+}
+
+function resetAssignTrialModal(user) {
+    showAssignTrialModalFeedback("", "danger");
+    syncAssignTrialModalOptions();
+
+    assignTrialUserName.textContent = user.telemtUserId;
+    assignTrialTariffSelect.value = "";
+    assignTrialDurationInput.value = "7";
+    assignTrialNextTariffSelect.value = "";
+    assignTrialCommentInput.value = "";
+    toggleAssignTrialFormState(false);
+}
+
+function buildAssignTrialBackdrop() {
+    assignTrialBackdrop = createElement("div", ["modal-backdrop", "fade", "show"]);
+    return assignTrialBackdrop;
+}
+
+function toggleAssignTrialFormState(isBusy) {
+    assignTrialTariffSelect.disabled = isBusy;
+    assignTrialDurationInput.disabled = isBusy;
+    assignTrialNextTariffSelect.disabled = isBusy;
+    assignTrialCommentInput.disabled = isBusy;
+    assignTrialSubmitButton.disabled = isBusy;
+}
+
+function showAssignTrialModalFeedback(message, type) {
+    if (!message) {
+        assignTrialModalFeedback.className = "d-none";
+        assignTrialModalFeedback.replaceChildren();
+        return;
+    }
+
+    const alert = createElement("div", ["alert", `alert-${type}`, "mb-0"]);
+    alert.role = "alert";
+    alert.textContent = message;
+
+    assignTrialModalFeedback.className = "";
+    assignTrialModalFeedback.replaceChildren(alert);
+}
+
+async function handleAssignTrialSubmit() {
+    const user = state.selectedTrialUser;
+    const trialTariffId = assignTrialTariffSelect.value.trim();
+    const trialDurationDays = assignTrialDurationInput.value.trim();
+    const nextTariffId = assignTrialNextTariffSelect.value.trim();
+    const comment = assignTrialCommentInput.value.trim();
+
+    if (!user) {
+        showAssignTrialModalFeedback("Пользователь для назначения пробного периода не выбран.", "danger");
+        return;
+    }
+
+    if (!trialTariffId) {
+        showAssignTrialModalFeedback("Выберите тариф пробного периода.", "danger");
+        assignTrialTariffSelect.focus();
+        return;
+    }
+
+    if (!/^[0-9]+$/.test(trialDurationDays) || Number.parseInt(trialDurationDays, 10) <= 0) {
+        showAssignTrialModalFeedback("Длительность пробного периода должна быть положительным целым числом дней.", "danger");
+        assignTrialDurationInput.focus();
+        return;
+    }
+
+    if (!nextTariffId) {
+        showAssignTrialModalFeedback("Выберите тариф после пробного периода.", "danger");
+        assignTrialNextTariffSelect.focus();
+        return;
+    }
+
+    toggleAssignTrialFormState(true);
+    showAssignTrialModalFeedback("", "danger");
+    clearFeedback();
+
+    try {
+        let requestUrl = `/Admin/Users?handler=AssignTrial&userId=${encodeURIComponent(user.userId)}&trialTariffId=${encodeURIComponent(trialTariffId)}&trialDurationDays=${encodeURIComponent(trialDurationDays)}&nextTariffId=${encodeURIComponent(nextTariffId)}`;
+
+        if (comment.length > 0) {
+            requestUrl += `&comment=${encodeURIComponent(comment)}`;
+        }
+
+        const response = await sendJsonRequest(
+            requestUrl,
+            "POST",
+            buildJsonHeaders(antiforgeryToken)
+        );
+
+        unwrapOrThrow(response, "Не удалось назначить пробный период.");
+
+        closeAssignTrialModal();
+        await loadPageData();
+        showFeedback(`Пробный период для пользователя ${user.telemtUserId} назначен.`, "success");
+    }
+    catch (error) {
+        showAssignTrialModalFeedback(error.message, "danger");
+    }
+    finally {
+        toggleAssignTrialFormState(false);
+    }
+}
+
 function buildCreateUserBackdrop() {
     createUserBackdrop = createElement("div", ["modal-backdrop", "fade", "show"]);
     return createUserBackdrop;
@@ -707,13 +1025,56 @@ function showCreateUserModalFeedback(message, type) {
     createUserModalFeedback.replaceChildren(alert);
 }
 
-function updateTariffPriceNote(user, note) {
-    if (user.tariffRequiresRenewal) {
-        note.textContent = `Кастомная цена для тарифа: ${user.tariffName}`;
+async function copyProxyLink(user, button) {
+    if (!user.proxyLink) {
+        showFeedback(`У пользователя ${user.telemtUserId} отсутствует ссылка подключения.`, "danger");
         return;
     }
 
-    note.textContent = "Для этого тарифа индивидуальная цена недоступна.";
+    const initialText = button.textContent;
+    button.disabled = true;
+
+    try {
+        await navigator.clipboard.writeText(user.proxyLink);
+        button.textContent = "Скопировано";
+        showFeedback(`TG URL пользователя ${user.telemtUserId} скопирован в буфер обмена.`, "success");
+        window.setTimeout(() => {
+            button.textContent = initialText;
+        }, 1500);
+    }
+    catch {
+        button.textContent = initialText;
+        showFeedback("Не удалось скопировать ссылку подключения в буфер обмена.", "danger");
+    }
+    finally {
+        window.setTimeout(() => {
+            button.disabled = false;
+        }, 1500);
+    }
+}
+
+async function updateTelemtAccess(user, handlerName, button, successMessage) {
+    button.disabled = true;
+    clearFeedback();
+
+    try {
+        const requestUrl = `/Admin/Users?handler=${handlerName}&userId=${encodeURIComponent(user.userId)}`;
+        const response = await sendJsonRequest(
+            requestUrl,
+            "POST",
+            buildJsonHeaders(antiforgeryToken)
+        );
+
+        unwrapOrThrow(response, "Не удалось обновить состояние пользователя в telemt.");
+        await loadPageData();
+        showFeedback(successMessage, "success");
+    }
+    catch (error) {
+        showFeedback(error.message, "danger");
+    }
+    finally {
+        button.disabled = false;
+    }
 }
 
 function renderEmptyState(message) {
@@ -877,8 +1238,24 @@ function formatDateTime(value, fallback) {
 }
 
 function formatTariffPeriod(periodMonths) {
+    if (periodMonths === -14) {
+        return "2 недели";
+    }
+
+    if (periodMonths === -7) {
+        return "1 неделя";
+    }
+
     if (periodMonths === 1) {
-        return "1 месяц";
+        return "Месяц";
+    }
+
+    if (periodMonths === 6) {
+        return "6 месяцев";
+    }
+
+    if (periodMonths === 12) {
+        return "Год";
     }
 
     if (periodMonths >= 2 && periodMonths <= 4) {

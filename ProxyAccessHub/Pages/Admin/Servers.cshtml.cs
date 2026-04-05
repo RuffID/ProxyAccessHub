@@ -30,7 +30,7 @@ public sealed class ServersModel(IAdminServerManagementService adminServerManage
     /// <summary>
     /// Создаёт новый сервер.
     /// </summary>
-    public async Task<IActionResult> OnPostCreateAsync(string name, string host, string apiPort, string apiBearerToken, string maxUsers, string isActive)
+    public async Task<IActionResult> OnPostCreateAsync(string name, string host, string apiPort, string apiBearerToken, string maxUsers, string isActive, string syncEnabled, string syncIntervalMinutes)
     {
         if (!int.TryParse(apiPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedApiPort))
         {
@@ -42,6 +42,11 @@ public sealed class ServersModel(IAdminServerManagementService adminServerManage
             return CreateErrorResult(StatusCodes.Status400BadRequest, "Лимит пользователей должен быть целым числом.");
         }
 
+        if (!int.TryParse(syncIntervalMinutes, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedSyncIntervalMinutes))
+        {
+            return CreateErrorResult(StatusCodes.Status400BadRequest, "Интервал синхронизации должен быть целым числом.");
+        }
+
         try
         {
             await adminServerManagementService.CreateAsync(
@@ -51,6 +56,8 @@ public sealed class ServersModel(IAdminServerManagementService adminServerManage
                 apiBearerToken,
                 parsedMaxUsers,
                 ParseBool(isActive),
+                ParseBool(syncEnabled),
+                parsedSyncIntervalMinutes,
                 HttpContext.RequestAborted);
 
             return CreateSuccessResult();
@@ -64,7 +71,7 @@ public sealed class ServersModel(IAdminServerManagementService adminServerManage
     /// <summary>
     /// Обновляет существующий сервер.
     /// </summary>
-    public async Task<IActionResult> OnPostUpdateAsync(Guid id, string name, string host, string apiPort, string apiBearerToken, string maxUsers, string isActive)
+    public async Task<IActionResult> OnPostUpdateAsync(Guid id, string name, string host, string apiPort, string apiBearerToken, string maxUsers, string isActive, string syncEnabled, string syncIntervalMinutes)
     {
         if (!int.TryParse(apiPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedApiPort))
         {
@@ -74,6 +81,11 @@ public sealed class ServersModel(IAdminServerManagementService adminServerManage
         if (!int.TryParse(maxUsers, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMaxUsers))
         {
             return CreateErrorResult(StatusCodes.Status400BadRequest, "Лимит пользователей должен быть целым числом.");
+        }
+
+        if (!int.TryParse(syncIntervalMinutes, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedSyncIntervalMinutes))
+        {
+            return CreateErrorResult(StatusCodes.Status400BadRequest, "Интервал синхронизации должен быть целым числом.");
         }
 
         try
@@ -86,6 +98,8 @@ public sealed class ServersModel(IAdminServerManagementService adminServerManage
                 apiBearerToken,
                 parsedMaxUsers,
                 ParseBool(isActive),
+                ParseBool(syncEnabled),
+                parsedSyncIntervalMinutes,
                 HttpContext.RequestAborted);
 
             return CreateSuccessResult();

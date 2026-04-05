@@ -63,7 +63,8 @@ public class UserRenewalLookupService(
 
     private async Task<UserRenewalLookupResult> BuildResultAsync(ProxyUser user, string searchKind, CancellationToken cancellationToken)
     {
-        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
+        Guid billingTariffId = await ResolveBillingTariffIdAsync(user, cancellationToken);
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(billingTariffId, cancellationToken)
             ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
         TariffUserPriceOverride? priceOverride = user.TariffSettings is null
             ? null
@@ -84,6 +85,19 @@ public class UserRenewalLookupService(
             tariff.PeriodMonths,
             amountRequiredRub,
             searchKind);
+    }
+
+    private async Task<Guid> ResolveBillingTariffIdAsync(ProxyUser user, CancellationToken cancellationToken)
+    {
+        UserTariffAssignment? activeAssignment = await unitOfWork.UserTariffAssignments.GetActiveByUserIdAsync(user.Id, cancellationToken);
+
+        if (activeAssignment?.IsTrial != true)
+        {
+            return user.TariffId;
+        }
+
+        return activeAssignment.NextTariffId
+            ?? throw new InvalidOperationException($"У активного trial пользователя '{user.TelemtUserId}' не указан следующий тариф.");
     }
 
     private static bool IsProxyMatch(ProxyUser user, string normalizedSearchValue, string? normalizedSecret)

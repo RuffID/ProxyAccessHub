@@ -3,6 +3,7 @@ using EFCoreLibrary.Abstractions.Database.Repository.Base;
 using Microsoft.EntityFrameworkCore;
 using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Domain.Entities;
+using ProxyAccessHub.Domain.Tariffs;
 using ProxyAccessHub.Infrastructure.Data;
 using ProxyAccessHub.Infrastructure.Data.Entities;
 
@@ -118,9 +119,14 @@ public class TariffDefinitionRepository(
             throw new InvalidOperationException("Стоимость тарифа не может быть отрицательной.");
         }
 
-        if (tariff.RequiresRenewal && tariff.PeriodMonths <= 0)
+        if (tariff.RequiresRenewal && !TariffPeriodHelper.IsSupported(tariff.PeriodMonths))
         {
             throw new InvalidOperationException("Срок действия тарифа должен быть больше нуля.");
+        }
+
+        if (tariff.RequiresRenewal && TariffPeriodHelper.IsUnlimited(tariff.PeriodMonths))
+        {
+            throw new InvalidOperationException("РЎСЂРѕРє РґРµР№СЃС‚РІРёСЏ С‚Р°СЂРёС„Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ РЅСѓР»СЏ.");
         }
 
         if (!tariff.RequiresRenewal && tariff.PeriodMonths != 0)

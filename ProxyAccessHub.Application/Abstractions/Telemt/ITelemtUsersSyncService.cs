@@ -12,5 +12,5 @@ public interface ITelemtUsersSyncService
     /// </summary>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Результат синхронизации.</returns>
-    Task<TelemtUsersSyncResult> SyncAsync(CancellationToken cancellationToken = default);
+    Task<TelemtUsersSyncResult> SyncAsync(Guid serverId, CancellationToken cancellationToken = default);
 }

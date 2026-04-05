@@ -36,6 +36,11 @@ public interface IProxyAccessHubUnitOfWork
     ISubscriptionRepository Subscriptions { get; }
 
     /// <summary>
+    /// Репозиторий истории назначений тарифов.
+    /// </summary>
+    IUserTariffAssignmentRepository UserTariffAssignments { get; }
+
+    /// <summary>
     /// Сохраняет накопленные изменения.
     /// </summary>
     /// <param name="cancellationToken">Токен отмены.</param>

@@ -61,11 +61,15 @@ function buildCreateCard() {
     maxUsersInput.step = "1";
     maxUsersInput.value = "50";
     const activeInput = createCheckbox("serverCreateIsActive", "serverCreateIsActive", true);
+    const syncEnabledInput = createCheckbox("serverCreateSyncEnabled", "serverCreateSyncEnabled", true);
+    const syncIntervalInput = createInput("serverCreateSyncIntervalMinutes", "serverCreateSyncIntervalMinutes", "number", "15");
+    syncIntervalInput.min = "1";
+    syncIntervalInput.step = "1";
     const createButton = createElement("button", ["btn", "btn-dark"]);
     createButton.type = "button";
     createButton.textContent = "Добавить сервер";
     createButton.addEventListener("click", async () => {
-        await createServer(nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput);
+        await createServer(nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput, syncEnabledInput, syncIntervalInput);
     });
 
     const createButtonContainer = createElement("div", ["d-flex", "justify-content-end"]);
@@ -76,9 +80,11 @@ function buildCreateCard() {
         createColumn(createField("Название", nameInput), ["col-12", "col-lg-2"]),
         createColumn(createField("Хост", hostInput), ["col-12", "col-lg-2"]),
         createColumn(createField("API порт", apiPortInput), ["col-12", "col-lg-1"]),
-        createColumn(createField("Bearer-токен", apiBearerTokenInput), ["col-12", "col-lg-3"]),
-        createColumn(createField("Лимит пользователей", maxUsersInput), ["col-12", "col-lg-2"]),
-        createColumn(createCheckboxField("Активен", activeInput), ["col-12", "col-lg-2"])
+        createColumn(createField("Bearer-токен", apiBearerTokenInput), ["col-12", "col-lg-2"]),
+        createColumn(createField("Лимит пользователей", maxUsersInput), ["col-12", "col-lg-1"]),
+        createColumn(createCheckboxField("Активен", activeInput), ["col-12", "col-lg-2"]),
+        createColumn(createCheckboxField("Синхронизация", syncEnabledInput), ["col-12", "col-lg-2"]),
+        createColumn(createField("Интервал синхронизации, мин", syncIntervalInput), ["col-12", "col-lg-2"])
     );
 
     body.append(header, row);
@@ -94,7 +100,7 @@ function buildTableCard() {
     const thead = createElement("thead", ["table-light"]);
     const headRow = createElement("tr");
 
-    for (const heading of ["Название", "Хост", "API порт", "Bearer-токен", "Лимит", "Статус", "Действия"]) {
+    for (const heading of ["Название", "Хост", "API порт", "Bearer-токен", "Лимит", "Статус", "Синхронизация", "Интервал", "Действия"]) {
         const th = createElement("th", ["px-3", "py-3", "text-nowrap"]);
         th.scope = "col";
         th.textContent = heading;
@@ -137,6 +143,10 @@ function buildServerRow(server) {
     maxUsersInput.min = "1";
     maxUsersInput.step = "1";
     const activeInput = createCheckbox(`serverIsActive_${server.id}`, `serverIsActive_${server.id}`, server.isActive);
+    const syncEnabledInput = createCheckbox(`serverSyncEnabled_${server.id}`, `serverSyncEnabled_${server.id}`, server.syncEnabled);
+    const syncIntervalInput = createInput(`serverSyncIntervalMinutes_${server.id}`, `serverSyncIntervalMinutes_${server.id}`, "number", String(server.syncIntervalMinutes));
+    syncIntervalInput.min = "1";
+    syncIntervalInput.step = "1";
     const actions = createElement("div", ["d-flex", "flex-wrap", "gap-2"]);
     const saveButton = createElement("button", ["btn", "btn-outline-dark", "btn-sm"]);
     const checkButton = createElement("button", ["btn", "btn-outline-secondary", "btn-sm"]);
@@ -145,7 +155,7 @@ function buildServerRow(server) {
     saveButton.type = "button";
     saveButton.textContent = "Сохранить";
     saveButton.addEventListener("click", async () => {
-        await updateServer(server.id, nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput);
+        await updateServer(server.id, nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput, syncEnabledInput, syncIntervalInput);
     });
 
     checkButton.type = "button";
@@ -169,15 +179,17 @@ function buildServerRow(server) {
         createCell(apiBearerTokenInput),
         createCell(maxUsersInput),
         createCell(createCheckboxField("Активен", activeInput)),
+        createCell(createCheckboxField("Синхронизация", syncEnabledInput)),
+        createCell(syncIntervalInput),
         createCell(actions)
     );
 
     return row;
 }
 
-async function createServer(nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput) {
+async function createServer(nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput, syncEnabledInput, syncIntervalInput) {
     try {
-        const url = `/Admin/Servers?handler=Create&name=${encodeURIComponent(nameInput.value)}&host=${encodeURIComponent(hostInput.value)}&apiPort=${encodeURIComponent(apiPortInput.value)}&apiBearerToken=${encodeURIComponent(apiBearerTokenInput.value)}&maxUsers=${encodeURIComponent(maxUsersInput.value)}&isActive=${encodeURIComponent(String(activeInput.checked))}`;
+        const url = `/Admin/Servers?handler=Create&name=${encodeURIComponent(nameInput.value)}&host=${encodeURIComponent(hostInput.value)}&apiPort=${encodeURIComponent(apiPortInput.value)}&apiBearerToken=${encodeURIComponent(apiBearerTokenInput.value)}&maxUsers=${encodeURIComponent(maxUsersInput.value)}&isActive=${encodeURIComponent(String(activeInput.checked))}&syncEnabled=${encodeURIComponent(String(syncEnabledInput.checked))}&syncIntervalMinutes=${encodeURIComponent(syncIntervalInput.value)}`;
         const response = await sendJsonRequest(url, "POST", buildJsonHeaders(antiforgeryToken));
         unwrapOrThrow(response, "Не удалось создать сервер.");
 
@@ -187,6 +199,8 @@ async function createServer(nameInput, hostInput, apiPortInput, apiBearerTokenIn
         apiBearerTokenInput.value = "";
         maxUsersInput.value = "50";
         activeInput.checked = true;
+        syncEnabledInput.checked = true;
+        syncIntervalInput.value = "15";
         showFeedback("Сервер добавлен.", "success");
         await loadServers();
     }
@@ -195,9 +209,9 @@ async function createServer(nameInput, hostInput, apiPortInput, apiBearerTokenIn
     }
 }
 
-async function updateServer(id, nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput) {
+async function updateServer(id, nameInput, hostInput, apiPortInput, apiBearerTokenInput, maxUsersInput, activeInput, syncEnabledInput, syncIntervalInput) {
     try {
-        const url = `/Admin/Servers?handler=Update&id=${encodeURIComponent(id)}&name=${encodeURIComponent(nameInput.value)}&host=${encodeURIComponent(hostInput.value)}&apiPort=${encodeURIComponent(apiPortInput.value)}&apiBearerToken=${encodeURIComponent(apiBearerTokenInput.value)}&maxUsers=${encodeURIComponent(maxUsersInput.value)}&isActive=${encodeURIComponent(String(activeInput.checked))}`;
+        const url = `/Admin/Servers?handler=Update&id=${encodeURIComponent(id)}&name=${encodeURIComponent(nameInput.value)}&host=${encodeURIComponent(hostInput.value)}&apiPort=${encodeURIComponent(apiPortInput.value)}&apiBearerToken=${encodeURIComponent(apiBearerTokenInput.value)}&maxUsers=${encodeURIComponent(maxUsersInput.value)}&isActive=${encodeURIComponent(String(activeInput.checked))}&syncEnabled=${encodeURIComponent(String(syncEnabledInput.checked))}&syncIntervalMinutes=${encodeURIComponent(syncIntervalInput.value)}`;
         const response = await sendJsonRequest(url, "POST", buildJsonHeaders(antiforgeryToken));
         unwrapOrThrow(response, "Не удалось обновить сервер.");
 

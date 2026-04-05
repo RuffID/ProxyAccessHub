@@ -179,6 +179,20 @@ public class YooMoneyNotificationService(
         await unitOfWork.Payments.AddAsync(payment, cancellationToken);
         await unitOfWork.Users.UpdateAsync(provisioningResult.UpdatedUser, cancellationToken);
         await unitOfWork.Subscriptions.AddAsync(provisioningResult.CreatedSubscription, cancellationToken);
+        await unitOfWork.UserTariffAssignments.AddAsync(
+            new UserTariffAssignment(
+                Guid.NewGuid(),
+                provisioningResult.UpdatedUser.Id,
+                provisioningResult.UpdatedUser.TariffId,
+                receivedAtUtc,
+                null,
+                false,
+                null,
+                null,
+                receivedAtUtc,
+                "Первичное назначение тарифа после оплаты нового подключения.",
+                "system:yoomoney"),
+            cancellationToken);
         await unitOfWork.PaymentRequests.UpdateAsync(updatedPaymentRequest, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }

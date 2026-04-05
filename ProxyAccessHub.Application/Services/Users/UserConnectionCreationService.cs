@@ -10,6 +10,7 @@ using ProxyAccessHub.Application.Models.Telemt;
 using ProxyAccessHub.Application.Models.Users;
 using ProxyAccessHub.Domain.Entities;
 using ProxyAccessHub.Domain.Enums;
+using ProxyAccessHub.Domain.Tariffs;
 
 namespace ProxyAccessHub.Application.Services.Users;
 
@@ -21,6 +22,7 @@ public sealed class UserConnectionCreationService(
     ITariffPriceResolver tariffPriceResolver,
     IUserPaymentRequestService userPaymentRequestService,
     ITelemtApiClient telemtApiClient,
+    IOptions<ProxyAccessHubOptions> proxyAccessHubOptions,
     IOptions<YooMoneyOptions> yooMoneyOptions) : IUserConnectionCreationService
 {
     /// <inheritdoc />
@@ -55,6 +57,7 @@ public sealed class UserConnectionCreationService(
             null,
             0m,
             null,
+            false,
             ManualHandlingStatus.NotRequired,
             null,
             null,
@@ -164,10 +167,16 @@ public sealed class UserConnectionCreationService(
         }
 
         TariffDefinition tariff = await GetDefaultTariffForNewConnectionAsync(cancellationToken);
-        DateTimeOffset expirationUtc = paidAtUtc.AddMonths(tariff.PeriodMonths);
+        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(pendingUser.ServerId, cancellationToken)
+            ?? throw new KeyNotFoundException("Сервер нового подключения не найден.");
+        ValidateTelemtCreationLimits(proxyAccessHubOptions.Value);
+        DateTimeOffset expirationUtc = TariffPeriodHelper.ApplyPeriods(paidAtUtc, tariff.PeriodMonths);
         TelemtCreatedUserResult createdUser = await telemtApiClient.CreateUserAsync(
+            server,
             pendingUser.TelemtUserId,
             expirationUtc,
+            proxyAccessHubOptions.Value.DefaultTelemtMaxTcpConnections,
+            proxyAccessHubOptions.Value.DefaultTelemtMaxUniqueIps,
             cancellationToken);
         string proxyLink = PendingConnectionUserConventions.SelectPrimaryProxyLink(createdUser.User.Links);
         string proxyLookupKey = PendingConnectionUserConventions.BuildProxyLookupKey(proxyLink);
@@ -177,6 +186,7 @@ public sealed class UserConnectionCreationService(
             ProxyLink = proxyLink,
             ProxyLinkLookupKey = proxyLookupKey,
             AccessPaidToUtc = createdUser.User.ExpirationUtc,
+            IsTelemtAccessActive = true,
             ManualHandlingStatus = ManualHandlingStatus.NotRequired,
             ManualHandlingReason = null,
             UserAdTag = createdUser.User.UserAdTag,
@@ -263,5 +273,18 @@ public sealed class UserConnectionCreationService(
         Uri baseUri = new(yooMoneyOptions.Value.SuccessUrl.Trim(), UriKind.Absolute);
         string separator = string.IsNullOrEmpty(baseUri.Query) ? "?" : "&";
         return baseUri + $"{separator}paymentRequestId={paymentRequestId:D}";
+    }
+
+    private static void ValidateTelemtCreationLimits(ProxyAccessHubOptions proxyAccessHubOptions)
+    {
+        if (proxyAccessHubOptions.DefaultTelemtMaxTcpConnections <= 0)
+        {
+            throw new InvalidOperationException("В конфигурации ProxyAccessHub должен быть задан положительный лимит TCP-подключений для telemt.");
+        }
+
+        if (proxyAccessHubOptions.DefaultTelemtMaxUniqueIps <= 0)
+        {
+            throw new InvalidOperationException("В конфигурации ProxyAccessHub должен быть задан положительный лимит уникальных IP для telemt.");
+        }
     }
 }

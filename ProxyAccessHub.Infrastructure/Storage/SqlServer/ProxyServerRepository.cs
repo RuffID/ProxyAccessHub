@@ -126,7 +126,9 @@ public class ProxyServerRepository(
             ApiPort = server.ApiPort,
             ApiBearerToken = server.ApiBearerToken,
             MaxUsers = server.MaxUsers,
-            IsActive = server.IsActive
+            IsActive = server.IsActive,
+            SyncEnabled = server.SyncEnabled,
+            SyncIntervalMinutes = server.SyncIntervalMinutes
         };
     }
 
@@ -140,7 +142,9 @@ public class ProxyServerRepository(
             entity.ApiPort,
             entity.ApiBearerToken,
             entity.MaxUsers,
-            entity.IsActive);
+            entity.IsActive,
+            entity.SyncEnabled,
+            entity.SyncIntervalMinutes);
     }
 
     private static void ValidateServer(ProxyServer server)
@@ -173,6 +177,11 @@ public class ProxyServerRepository(
         if (server.MaxUsers <= 0)
         {
             throw new InvalidOperationException("Лимит пользователей на сервере должен быть больше нуля.");
+        }
+
+        if (server.SyncIntervalMinutes <= 0)
+        {
+            throw new InvalidOperationException("Интервал фоновой синхронизации сервера должен быть больше нуля.");
         }
     }
 

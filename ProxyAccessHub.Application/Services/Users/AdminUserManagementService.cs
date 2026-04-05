@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Options;
 using ProxyAccessHub.Application.Abstractions.Administration;
 using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Application.Abstractions.Tariffs;
@@ -10,8 +11,10 @@ using ProxyAccessHub.Application.Abstractions.Users;
 using ProxyAccessHub.Application.Models.Telemt;
 using ProxyAccessHub.Application.Models.Tariffs;
 using ProxyAccessHub.Application.Models.Users;
+using ProxyAccessHub.Application.Configuration;
 using ProxyAccessHub.Domain.Entities;
 using ProxyAccessHub.Domain.Enums;
+using ProxyAccessHub.Domain.Tariffs;
 using ProxyAccessHub.Domain.ValueObjects;
 
 namespace ProxyAccessHub.Application.Services.Users;
@@ -24,10 +27,12 @@ public sealed class AdminUserManagementService(
     ITariffPriceResolver tariffPriceResolver,
     ITelemtSyncStateStore telemtSyncStateStore,
     IAdminServerManagementService adminServerManagementService,
-    IHttpClientFactory httpClientFactory) : IAdminUserManagementService
+    IHttpClientFactory httpClientFactory,
+    IOptions<ProxyAccessHubOptions> proxyAccessHubOptions) : IAdminUserManagementService
 {
     private const decimal MAX_CUSTOM_PERIOD_PRICE_RUB = 1000m;
     private const int API_TIMEOUT_SECONDS = 15;
+    private const int UNLIMITED_REACTIVATION_YEARS = 10;
     private static readonly Regex TELEMT_USER_ID_REGEX = new("^[A-Za-z0-9_.-]{1,64}$", RegexOptions.Compiled);
 
     /// <inheritdoc />
@@ -38,6 +43,9 @@ public sealed class AdminUserManagementService(
         IReadOnlyDictionary<Guid, ProxyServer> serversById = servers.ToDictionary(server => server.Id);
         IReadOnlyList<TariffDefinition> tariffs = await unitOfWork.Tariffs.GetAllAsync(cancellationToken);
         IReadOnlyDictionary<Guid, TariffDefinition> tariffsById = tariffs.ToDictionary(tariff => tariff.Id);
+        IReadOnlyDictionary<Guid, UserTariffAssignment> activeAssignmentsByUserId = (await unitOfWork.UserTariffAssignments.GetActiveAsync(cancellationToken))
+            .ToDictionary(assignment => assignment.UserId);
+        IReadOnlySet<Guid> userIdsWithTrialHistory = await unitOfWork.UserTariffAssignments.GetUserIdsWithTrialHistoryAsync(cancellationToken);
         IReadOnlyList<AdminTariffOption> tariffOptions = tariffs
             .Select(tariff => new AdminTariffOption(
                 tariff.Id,
@@ -54,7 +62,7 @@ public sealed class AdminUserManagementService(
 
         IReadOnlyList<AdminUserListItem> userItems = users
             .Where(user => !onlyManualHandling || user.ManualHandlingStatus == ManualHandlingStatus.Required)
-            .Select(user => MapUser(user, serversById, tariffsById))
+            .Select(user => MapUser(user, serversById, tariffsById, activeAssignmentsByUserId, userIdsWithTrialHistory))
             .ToArray();
 
         return new AdminUsersPageData(
@@ -85,6 +93,9 @@ public sealed class AdminUserManagementService(
     /// <inheritdoc />
     public async Task UpdateUserTariffAsync(Guid userId, Guid tariffId, CancellationToken cancellationToken = default)
     {
+        UserTariffAssignment activeAssignment = await unitOfWork.UserTariffAssignments.GetActiveByUserIdAsync(userId, cancellationToken)
+            ?? throw new InvalidOperationException("У пользователя отсутствует активное назначение тарифа.");
+        DateTimeOffset switchedAtUtc = DateTimeOffset.UtcNow;
         ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("Пользователь для обновления тарифа не найден.");
         TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(tariffId, cancellationToken)
@@ -96,6 +107,108 @@ public sealed class AdminUserManagementService(
             TariffSettings = null
         };
 
+        UserTariffAssignment completedAssignment = activeAssignment with
+        {
+            EndedAtUtc = switchedAtUtc
+        };
+        UserTariffAssignment nextAssignment = new(
+            Guid.NewGuid(),
+            user.Id,
+            tariff.Id,
+            switchedAtUtc,
+            null,
+            false,
+            null,
+            null,
+            switchedAtUtc,
+            "Ручное изменение тарифа из админки.",
+            "admin");
+
+        await unitOfWork.UserTariffAssignments.UpdateAsync(completedAssignment, cancellationToken);
+        await unitOfWork.UserTariffAssignments.AddAsync(nextAssignment, cancellationToken);
+        await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task AssignTrialAsync(
+        Guid userId,
+        Guid trialTariffId,
+        int trialDurationDays,
+        Guid nextTariffId,
+        string? comment,
+        CancellationToken cancellationToken = default)
+    {
+        if (trialDurationDays <= 0)
+        {
+            throw new InvalidOperationException("Длительность trial должна быть больше нуля.");
+        }
+
+        ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            ?? throw new KeyNotFoundException("Пользователь для назначения trial не найден.");
+
+        if (PendingConnectionUserConventions.IsPending(user))
+        {
+            throw new InvalidOperationException("Нельзя назначить trial пользователю, который ещё не создан в telemt.");
+        }
+
+        TariffDefinition trialTariff = await unitOfWork.Tariffs.GetByIdAsync(trialTariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Тариф '{trialTariffId}' не найден.");
+        TariffDefinition nextTariff = await unitOfWork.Tariffs.GetByIdAsync(nextTariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Тариф '{nextTariffId}' не найден.");
+        UserTariffAssignment activeAssignment = await unitOfWork.UserTariffAssignments.GetActiveByUserIdAsync(userId, cancellationToken)
+            ?? throw new InvalidOperationException("У пользователя отсутствует активное назначение тарифа.");
+
+        if (!trialTariff.IsActive)
+        {
+            throw new InvalidOperationException($"Тариф '{trialTariff.Name}' для trial неактивен.");
+        }
+
+        if (!nextTariff.IsActive)
+        {
+            throw new InvalidOperationException($"Тариф '{nextTariff.Name}' для автопереключения неактивен.");
+        }
+
+        if (activeAssignment.IsTrial)
+        {
+            throw new InvalidOperationException($"У пользователя '{user.TelemtUserId}' уже есть активный trial.");
+        }
+
+        DateTimeOffset assignedAtUtc = DateTimeOffset.UtcNow;
+        DateTimeOffset trialEndsAtUtc = assignedAtUtc.AddDays(trialDurationDays);
+        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(user.ServerId, cancellationToken)
+            ?? throw new KeyNotFoundException("Сервер пользователя для назначения trial не найден.");
+        DateTimeOffset telemtExpirationUtc = user.AccessPaidToUtc.HasValue && user.AccessPaidToUtc.Value > trialEndsAtUtc
+            ? user.AccessPaidToUtc.Value
+            : trialEndsAtUtc;
+
+        await UpdateTelemtUserExpirationAsync(server, user.TelemtUserId, telemtExpirationUtc, cancellationToken);
+
+        ProxyUser updatedUser = user with
+        {
+            TariffId = trialTariff.Id,
+            AccessPaidToUtc = telemtExpirationUtc,
+            IsTelemtAccessActive = true
+        };
+        UserTariffAssignment completedAssignment = activeAssignment with
+        {
+            EndedAtUtc = assignedAtUtc
+        };
+        UserTariffAssignment trialAssignment = new(
+            Guid.NewGuid(),
+            user.Id,
+            trialTariff.Id,
+            assignedAtUtc,
+            null,
+            true,
+            trialDurationDays,
+            nextTariff.Id,
+            assignedAtUtc,
+            NormalizeAssignmentComment(comment),
+            "admin");
+
+        await unitOfWork.UserTariffAssignments.UpdateAsync(completedAssignment, cancellationToken);
+        await unitOfWork.UserTariffAssignments.AddAsync(trialAssignment, cancellationToken);
         await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -137,8 +250,9 @@ public sealed class AdminUserManagementService(
 
         DateTimeOffset createdAtUtc = DateTimeOffset.UtcNow;
         DateTimeOffset? expirationUtc = tariff.RequiresRenewal
-            ? createdAtUtc.AddMonths(tariff.PeriodMonths)
+            ? TariffPeriodHelper.ApplyPeriods(createdAtUtc, tariff.PeriodMonths)
             : null;
+        ValidateTelemtCreationLimits(proxyAccessHubOptions.Value);
         TelemtCreatedUserResult createdUser = await CreateTelemtUserAsync(server, normalizedTelemtUserId, expirationUtc, cancellationToken);
         string proxyLink = PendingConnectionUserConventions.SelectPrimaryProxyLink(createdUser.User.Links);
         string proxyLookupKey = PendingConnectionUserConventions.BuildProxyLookupKey(proxyLink);
@@ -152,6 +266,7 @@ public sealed class AdminUserManagementService(
             tariffSettings,
             0m,
             createdUser.User.ExpirationUtc,
+            IsTelemtAccessActive(createdUser.User.ExpirationUtc, createdAtUtc),
             ManualHandlingStatus.NotRequired,
             null,
             createdUser.User.UserAdTag,
@@ -166,9 +281,94 @@ public sealed class AdminUserManagementService(
             createdAtUtc,
             newUser.AccessPaidToUtc,
             tariff.IsUnlimited);
+        UserTariffAssignment initialAssignment = new(
+            Guid.NewGuid(),
+            newUser.Id,
+            tariff.Id,
+            createdAtUtc,
+            null,
+            false,
+            null,
+            null,
+            createdAtUtc,
+            "Первичное назначение тарифа при создании пользователя администратором.",
+            "admin");
 
         await unitOfWork.Users.AddAsync(newUser, cancellationToken);
         await unitOfWork.Subscriptions.AddAsync(subscription, cancellationToken);
+        await unitOfWork.UserTariffAssignments.AddAsync(initialAssignment, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task ActivateUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            ?? throw new KeyNotFoundException("Пользователь для активации не найден.");
+
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
+            ?? throw new KeyNotFoundException($"РўР°СЂРёС„ '{user.TariffId}' РЅРµ РЅР°Р№РґРµРЅ.");
+
+        if (PendingConnectionUserConventions.IsPending(user))
+        {
+            throw new InvalidOperationException("Нельзя активировать пользователя, который ещё не создан в telemt.");
+        }
+
+        DateTimeOffset activationExpirationUtc = tariff.IsUnlimited
+            ? DateTimeOffset.UtcNow.AddYears(UNLIMITED_REACTIVATION_YEARS)
+            : DateTimeOffset.MinValue;
+
+        if (!tariff.IsUnlimited && user.AccessPaidToUtc is null)
+        {
+            throw new InvalidOperationException("Для пользователя без оплаченного срока автоматическая активация недоступна.");
+        }
+
+        if (!tariff.IsUnlimited && user.AccessPaidToUtc <= DateTimeOffset.UtcNow)
+        {
+            throw new InvalidOperationException("Нельзя активировать пользователя с истёкшим локальным сроком доступа.");
+        }
+
+        if (!tariff.IsUnlimited)
+        {
+            activationExpirationUtc = user.AccessPaidToUtc!.Value;
+        }
+
+        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(user.ServerId, cancellationToken)
+            ?? throw new KeyNotFoundException("Сервер пользователя не найден.");
+
+        await UpdateTelemtUserExpirationAsync(server, user.TelemtUserId, activationExpirationUtc, cancellationToken);
+        ProxyUser updatedUser = user with
+        {
+            AccessPaidToUtc = activationExpirationUtc,
+            IsTelemtAccessActive = true
+        };
+
+        await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task DeactivateUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            ?? throw new KeyNotFoundException("Пользователь для деактивации не найден.");
+
+        if (PendingConnectionUserConventions.IsPending(user))
+        {
+            throw new InvalidOperationException("Нельзя деактивировать пользователя, который ещё не создан в telemt.");
+        }
+
+        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(user.ServerId, cancellationToken)
+            ?? throw new KeyNotFoundException("Сервер пользователя не найден.");
+        DateTimeOffset disabledAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1);
+
+        await UpdateTelemtUserExpirationAsync(server, user.TelemtUserId, disabledAtUtc, cancellationToken);
+        ProxyUser updatedUser = user with
+        {
+            IsTelemtAccessActive = false
+        };
+
+        await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
@@ -195,7 +395,9 @@ public sealed class AdminUserManagementService(
     private AdminUserListItem MapUser(
         ProxyUser user,
         IReadOnlyDictionary<Guid, ProxyServer> serversById,
-        IReadOnlyDictionary<Guid, TariffDefinition> tariffsById)
+        IReadOnlyDictionary<Guid, TariffDefinition> tariffsById,
+        IReadOnlyDictionary<Guid, UserTariffAssignment> activeAssignmentsByUserId,
+        IReadOnlySet<Guid> userIdsWithTrialHistory)
     {
         if (!serversById.TryGetValue(user.ServerId, out ProxyServer? server))
         {
@@ -212,10 +414,28 @@ public sealed class AdminUserManagementService(
             user.TariffSettings is null
                 ? null
                 : new TariffUserPriceOverride(user.TariffSettings.CustomPeriodPriceRub, user.TariffSettings.DiscountPercent));
+        UserTariffAssignment? activeAssignment = activeAssignmentsByUserId.GetValueOrDefault(user.Id);
+        string? nextTariffName = null;
+        DateTimeOffset? trialEndsAtUtc = null;
+
+        if (activeAssignment?.IsTrial == true)
+        {
+            Guid nextTariffId = activeAssignment.NextTariffId
+                ?? throw new InvalidOperationException("У активного trial не указан следующий тариф.");
+
+            if (!tariffsById.TryGetValue(nextTariffId, out TariffDefinition? nextTariff))
+            {
+                throw new KeyNotFoundException($"Для пользователя '{user.TelemtUserId}' не найден следующий тариф '{nextTariffId}'.");
+            }
+
+            nextTariffName = nextTariff.Name;
+            trialEndsAtUtc = GetTrialEndsAtUtc(activeAssignment);
+        }
 
         return new AdminUserListItem(
             user.Id,
             user.TelemtUserId,
+            user.ProxyLink,
             server.Name,
             tariff.Id,
             tariff.Name,
@@ -223,11 +443,42 @@ public sealed class AdminUserManagementService(
             effectivePeriodPriceRub,
             user.BalanceRub,
             user.AccessPaidToUtc,
+            user.IsTelemtAccessActive,
             user.ManualHandlingStatus == ManualHandlingStatus.Required,
             GetManualHandlingStatusName(user.ManualHandlingStatus),
             user.ManualHandlingReason,
             user.TariffSettings?.CustomPeriodPriceRub,
-            user.TariffSettings?.DiscountPercent);
+            user.TariffSettings?.DiscountPercent,
+            userIdsWithTrialHistory.Contains(user.Id),
+            activeAssignment?.IsTrial == true,
+            activeAssignment?.StartedAtUtc,
+            trialEndsAtUtc,
+            nextTariffName,
+            activeAssignment?.Comment,
+            activeAssignment?.AssignedBy);
+    }
+
+    private static DateTimeOffset GetTrialEndsAtUtc(UserTariffAssignment assignment)
+    {
+        if (!assignment.IsTrial || !assignment.TrialDurationDays.HasValue || assignment.TrialDurationDays.Value <= 0)
+        {
+            throw new InvalidOperationException($"Назначение '{assignment.Id}' не содержит корректных данных trial.");
+        }
+
+        return assignment.StartedAtUtc.AddDays(assignment.TrialDurationDays.Value);
+    }
+
+    private static string? NormalizeAssignmentComment(string? comment)
+    {
+        if (string.IsNullOrWhiteSpace(comment))
+        {
+            return null;
+        }
+
+        string normalizedComment = comment.Trim();
+        return normalizedComment.Length <= 1024
+            ? normalizedComment
+            : normalizedComment[..1024];
     }
 
     private async Task<TelemtCreatedUserResult> CreateTelemtUserAsync(
@@ -242,7 +493,9 @@ public sealed class AdminUserManagementService(
         using HttpRequestMessage request = new(HttpMethod.Post, requestUri);
         Dictionary<string, object?> requestBody = new()
         {
-            ["username"] = telemtUserId
+            ["username"] = telemtUserId,
+            ["max_tcp_conns"] = proxyAccessHubOptions.Value.DefaultTelemtMaxTcpConnections,
+            ["max_unique_ips"] = proxyAccessHubOptions.Value.DefaultTelemtMaxUniqueIps
         };
 
         if (expirationUtc is not null)
@@ -336,6 +589,34 @@ public sealed class AdminUserManagementService(
         throw new InvalidOperationException($"Не удалось проверить уникальность пользователя '{telemtUserId}' на сервере '{server.Name}'. Код: {(int)response.StatusCode}. Ответ: {responseContent}");
     }
 
+    private async Task UpdateTelemtUserExpirationAsync(
+        ProxyServer server,
+        string telemtUserId,
+        DateTimeOffset expirationUtc,
+        CancellationToken cancellationToken)
+    {
+        HttpClient httpClient = httpClientFactory.CreateClient();
+        httpClient.Timeout = TimeSpan.FromSeconds(API_TIMEOUT_SECONDS);
+        Uri requestUri = BuildTelemtUserUri(server.Host, server.ApiPort, telemtUserId);
+        using HttpRequestMessage request = new(HttpMethod.Patch, requestUri);
+        request.Headers.TryAddWithoutValidation("Authorization", BuildAuthorizationHeader(server.ApiBearerToken));
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(new Dictionary<string, object?>
+            {
+                ["expiration_rfc3339"] = expirationUtc.UtcDateTime.ToString("O")
+            }),
+            Encoding.UTF8,
+            "application/json");
+
+        using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+        string responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Не удалось обновить состояние пользователя '{telemtUserId}' на сервере '{server.Name}'. Код: {(int)response.StatusCode}. Ответ: {responseContent}");
+        }
+    }
+
     private static UserTariffSettings BuildCustomPriceSettings(TariffDefinition tariff, decimal customPeriodPriceRub)
     {
         if (!tariff.RequiresRenewal)
@@ -358,11 +639,44 @@ public sealed class AdminUserManagementService(
             null);
     }
 
+    private static bool IsTelemtAccessActive(DateTimeOffset? expirationUtc, DateTimeOffset nowUtc)
+    {
+        return expirationUtc is null || expirationUtc > nowUtc;
+    }
+
+    private static void ValidateTelemtCreationLimits(ProxyAccessHubOptions proxyAccessHubOptions)
+    {
+        if (proxyAccessHubOptions.DefaultTelemtMaxTcpConnections <= 0)
+        {
+            throw new InvalidOperationException("В конфигурации ProxyAccessHub должен быть задан положительный лимит TCP-подключений для telemt.");
+        }
+
+        if (proxyAccessHubOptions.DefaultTelemtMaxUniqueIps <= 0)
+        {
+            throw new InvalidOperationException("В конфигурации ProxyAccessHub должен быть задан положительный лимит уникальных IP для telemt.");
+        }
+    }
+
     private static IReadOnlyList<string> BuildTelemtLinks(JsonElement linksElement, string propertyName)
     {
         if (!linksElement.TryGetProperty(propertyName, out JsonElement linkElement) || linkElement.ValueKind == JsonValueKind.Null)
         {
             return Array.Empty<string>();
+        }
+
+        if (linkElement.ValueKind == JsonValueKind.Array)
+        {
+            return linkElement.EnumerateArray()
+                .Where(item => item.ValueKind == JsonValueKind.String)
+                .Select(item => item.GetString())
+                .Where(link => !string.IsNullOrWhiteSpace(link))
+                .Select(link => link!)
+                .ToArray();
+        }
+
+        if (linkElement.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException($"Telemt API вернул поле links.{propertyName} в неподдерживаемом формате '{linkElement.ValueKind}'.");
         }
 
         string? link = linkElement.GetString();

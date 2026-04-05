@@ -28,7 +28,8 @@ public class UserSubscriptionRenewalService(
             throw new InvalidOperationException("Сумма входящего платежа должна быть больше нуля.");
         }
 
-        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
+        Guid billingTariffId = await ResolveBillingTariffIdAsync(user, cancellationToken);
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(billingTariffId, cancellationToken)
             ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
 
         decimal updatedBalanceRub = user.BalanceRub + paymentAmountRub;
@@ -72,7 +73,7 @@ public class UserSubscriptionRenewalService(
             return new Subscription(
                 Guid.NewGuid(),
                 updatedUser.Id,
-                updatedUser.TariffId,
+                tariff.Id,
                 startedAtUtc,
                 updatedUser.AccessPaidToUtc,
                 tariff.IsUnlimited);
@@ -80,9 +81,22 @@ public class UserSubscriptionRenewalService(
 
         return currentSubscription with
         {
-            TariffId = updatedUser.TariffId,
+            TariffId = tariff.Id,
             PaidToUtc = updatedUser.AccessPaidToUtc,
             IsUnlimited = tariff.IsUnlimited
         };
+    }
+
+    private async Task<Guid> ResolveBillingTariffIdAsync(ProxyUser user, CancellationToken cancellationToken)
+    {
+        UserTariffAssignment? activeAssignment = await unitOfWork.UserTariffAssignments.GetActiveByUserIdAsync(user.Id, cancellationToken);
+
+        if (activeAssignment?.IsTrial != true)
+        {
+            return user.TariffId;
+        }
+
+        return activeAssignment.NextTariffId
+            ?? throw new InvalidOperationException($"У активного trial пользователя '{user.TelemtUserId}' не указан следующий тариф.");
     }
 }

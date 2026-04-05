@@ -46,4 +46,14 @@ public class ProxyServerEntity : IEntity<Guid>
     /// Признак активности сервера.
     /// </summary>
     public bool IsActive { get; set; }
+
+    /// <summary>
+    /// Признак включённой фоновой синхронизации сервера.
+    /// </summary>
+    public bool SyncEnabled { get; set; }
+
+    /// <summary>
+    /// Интервал фоновой синхронизации сервера в минутах.
+    /// </summary>
+    public int SyncIntervalMinutes { get; set; }
 }

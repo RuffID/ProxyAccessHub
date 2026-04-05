@@ -29,17 +29,19 @@ public class AdminServerManagementService(
                 server.ApiPort,
                 server.ApiBearerToken,
                 server.MaxUsers,
-                server.IsActive))
+                server.IsActive,
+                server.SyncEnabled,
+                server.SyncIntervalMinutes))
             .ToArray();
 
         return new AdminServersPageData(items);
     }
 
     /// <inheritdoc />
-    public async Task CreateAsync(string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, CancellationToken cancellationToken = default)
+    public async Task CreateAsync(string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, bool syncEnabled, int syncIntervalMinutes, CancellationToken cancellationToken = default)
     {
         IReadOnlyList<ProxyServer> servers = await unitOfWork.Servers.GetAllAsync(cancellationToken);
-        ValidateServer(name, host, apiPort, apiBearerToken, maxUsers, servers, null);
+        ValidateServer(name, host, apiPort, apiBearerToken, maxUsers, syncIntervalMinutes, servers, null);
 
         ProxyServer server = new(
             Guid.NewGuid(),
@@ -49,20 +51,22 @@ public class AdminServerManagementService(
             apiPort,
             NormalizeApiBearerToken(apiBearerToken),
             maxUsers,
-            isActive);
+            isActive,
+            syncEnabled,
+            syncIntervalMinutes);
 
         await unitOfWork.Servers.AddAsync(server, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task UpdateAsync(Guid id, string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(Guid id, string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, bool syncEnabled, int syncIntervalMinutes, CancellationToken cancellationToken = default)
     {
         ProxyServer currentServer = await unitOfWork.Servers.GetByIdAsync(id, cancellationToken)
             ?? throw new KeyNotFoundException("Сервер не найден.");
         IReadOnlyList<ProxyServer> servers = await unitOfWork.Servers.GetAllAsync(cancellationToken);
 
-        ValidateServer(name, host, apiPort, apiBearerToken, maxUsers, servers, currentServer.Id);
+        ValidateServer(name, host, apiPort, apiBearerToken, maxUsers, syncIntervalMinutes, servers, currentServer.Id);
 
         ProxyServer updatedServer = currentServer with
         {
@@ -71,7 +75,9 @@ public class AdminServerManagementService(
             ApiPort = apiPort,
             ApiBearerToken = NormalizeApiBearerToken(apiBearerToken),
             MaxUsers = maxUsers,
-            IsActive = isActive
+            IsActive = isActive,
+            SyncEnabled = syncEnabled,
+            SyncIntervalMinutes = syncIntervalMinutes
         };
 
         await unitOfWork.Servers.UpdateAsync(updatedServer, cancellationToken);
@@ -133,6 +139,7 @@ public class AdminServerManagementService(
         int apiPort,
         string apiBearerToken,
         int maxUsers,
+        int syncIntervalMinutes,
         IReadOnlyList<ProxyServer> existingServers,
         Guid? currentId)
     {
@@ -169,6 +176,11 @@ public class AdminServerManagementService(
         if (maxUsers <= 0)
         {
             throw new InvalidOperationException("Лимит пользователей должен быть больше нуля.");
+        }
+
+        if (syncIntervalMinutes <= 0)
+        {
+            throw new InvalidOperationException("Интервал синхронизации должен быть больше нуля.");
         }
 
         bool hasDuplicateName = existingServers.Any(server =>

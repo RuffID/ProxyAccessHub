@@ -57,6 +57,10 @@ public class ProxyUserEntity : IEntity<Guid>
     /// Дата оплаченного доступа в UTC.
     /// </summary>
     public DateTimeOffset? AccessPaidToUtc { get; set; }
+    /// <summary>
+    /// РџСЂРёР·РЅР°Рє С‚РµРєСѓС‰РµР№ Р°РєС‚РёРІРЅРѕСЃС‚Рё РґРѕСЃС‚СѓРїР° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ telemt.
+    /// </summary>
+    public bool IsTelemtAccessActive { get; set; }
 
     /// <summary>
     /// Признак безлимитного доступа пользователя.

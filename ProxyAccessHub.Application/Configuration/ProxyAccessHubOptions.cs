@@ -16,7 +16,12 @@ public sealed class ProxyAccessHubOptions
     public int PaymentRequestLifetimeMinutes { get; init; }
 
     /// <summary>
-    /// Общий лимит пользователей на один proxy-сервер.
+    /// Лимит TCP-подключений для автоматически создаваемого пользователя.
     /// </summary>
-    public int MaxUsersPerServer { get; init; }
+    public int DefaultTelemtMaxTcpConnections { get; init; }
+
+    /// <summary>
+    /// Лимит уникальных IP для автоматически создаваемого пользователя.
+    /// </summary>
+    public int DefaultTelemtMaxUniqueIps { get; init; }
 }

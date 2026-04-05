@@ -3,7 +3,10 @@ let tariffsPageRoot;
 let tariffsFeedbackContainer;
 let tariffsTableBody;
 let tariffsEmptyStateContainer;
+const TWO_WEEKS_PERIOD_MONTHS = "-14";
+const WEEKLY_PERIOD_MONTHS = "-7";
 const MONTHLY_PERIOD_MONTHS = "1";
+const HALF_YEAR_PERIOD_MONTHS = "6";
 const YEARLY_PERIOD_MONTHS = "12";
 const UNLIMITED_PERIOD_MONTHS = "0";
 
@@ -187,19 +190,47 @@ function createPeriodSelect(id, name, value) {
     select.id = id;
     select.name = name;
 
+    const twoWeeksOption = createElement("option");
+    twoWeeksOption.value = TWO_WEEKS_PERIOD_MONTHS;
+    twoWeeksOption.textContent = "Две недели";
+    twoWeeksOption.textContent = "Две недели";
+
+    twoWeeksOption.textContent = "\u0414\u0432\u0435 \u043d\u0435\u0434\u0435\u043b\u0438";
+
+    const weeklyOption = createElement("option");
+    weeklyOption.value = WEEKLY_PERIOD_MONTHS;
+    weeklyOption.textContent = "Неделя";
+    weeklyOption.textContent = "Неделя";
+
+    weeklyOption.textContent = "\u041d\u0435\u0434\u0435\u043b\u044f";
+
     const monthlyOption = createElement("option");
     monthlyOption.value = MONTHLY_PERIOD_MONTHS;
-    monthlyOption.textContent = "1 месяц";
+    monthlyOption.textContent = "Месяц";
+    monthlyOption.textContent = "Месяц";
+
+    monthlyOption.textContent = "\u041c\u0435\u0441\u044f\u0446";
+
+    const halfYearOption = createElement("option");
+    halfYearOption.value = HALF_YEAR_PERIOD_MONTHS;
+    halfYearOption.textContent = "Полгода";
+    halfYearOption.textContent = "РџРѕР»РіРѕРґР°";
+
+    halfYearOption.textContent = "\u041f\u043e\u043b\u0433\u043e\u0434\u0430";
 
     const yearlyOption = createElement("option");
     yearlyOption.value = YEARLY_PERIOD_MONTHS;
-    yearlyOption.textContent = "12 месяцев";
+    yearlyOption.textContent = "Год";
+    yearlyOption.textContent = "Год";
+
+    yearlyOption.textContent = "\u0413\u043e\u0434";
 
     const unlimitedOption = createElement("option");
     unlimitedOption.value = UNLIMITED_PERIOD_MONTHS;
     unlimitedOption.textContent = "Навсегда";
 
-    select.append(monthlyOption, yearlyOption, unlimitedOption);
+    select.append(twoWeeksOption, weeklyOption, monthlyOption, halfYearOption, yearlyOption, unlimitedOption);
+    select.append(weeklyOption, twoWeeksOption, monthlyOption, halfYearOption, yearlyOption, unlimitedOption);
     select.value = value;
     return select;
 }

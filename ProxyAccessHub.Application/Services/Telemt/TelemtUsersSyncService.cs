@@ -1,7 +1,5 @@
-using Microsoft.Extensions.Options;
 using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Application.Abstractions.Telemt;
-using ProxyAccessHub.Application.Configuration;
 using ProxyAccessHub.Application.Models.Telemt;
 using ProxyAccessHub.Application.Services.Users;
 using ProxyAccessHub.Domain.Entities;
@@ -14,22 +12,34 @@ namespace ProxyAccessHub.Application.Services.Telemt;
 /// </summary>
 public class TelemtUsersSyncService(
     ITelemtApiClient telemtApiClient,
-    IProxyAccessHubUnitOfWork unitOfWork,
-    IOptions<TelemtOptions> telemtOptions) : ITelemtUsersSyncService
+    IProxyAccessHubUnitOfWork unitOfWork) : ITelemtUsersSyncService
 {
     private const string MISSING_IN_TELEMT_REASON = "Пользователь отсутствует в telemt при фоновой синхронизации.";
 
     /// <inheritdoc />
-    public async Task<TelemtUsersSyncResult> SyncAsync(CancellationToken cancellationToken = default)
+    public async Task<TelemtUsersSyncResult> SyncAsync(Guid serverId, CancellationToken cancellationToken = default)
     {
-        ValidateOptions();
+        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(serverId, cancellationToken)
+            ?? throw new KeyNotFoundException("Сервер для фоновой синхронизации не найден.");
 
-        TelemtUsersSnapshot snapshot = await telemtApiClient.GetUsersAsync(cancellationToken);
+        if (!server.IsActive)
+        {
+            throw new InvalidOperationException($"Сервер '{server.Name}' неактивен и не может участвовать в фоновой синхронизации.");
+        }
+
+        if (!server.SyncEnabled)
+        {
+            throw new InvalidOperationException($"Для сервера '{server.Name}' отключена фоновая синхронизация.");
+        }
+
+        TelemtUsersSnapshot snapshot = await telemtApiClient.GetUsersAsync(server, cancellationToken);
         DateTimeOffset syncedAtUtc = DateTimeOffset.UtcNow;
-        ProxyServer server = await EnsureServerAsync(cancellationToken);
         TariffDefinition defaultTariff = await GetDefaultTariffAsync(cancellationToken);
         IReadOnlyList<ProxyUser> localUsers = await unitOfWork.Users.GetAllAsync(cancellationToken);
-        Dictionary<string, ProxyUser> localUsersByTelemtId = BuildLocalUsersByTelemtId(localUsers);
+        ProxyUser[] serverUsers = localUsers
+            .Where(user => user.ServerId == server.Id)
+            .ToArray();
+        Dictionary<string, ProxyUser> localUsersByTelemtId = BuildLocalUsersByTelemtId(serverUsers);
         HashSet<string> processedTelemtIds = new(StringComparer.OrdinalIgnoreCase);
 
         int createdUsers = 0;
@@ -45,6 +55,20 @@ public class TelemtUsersSyncService(
             if (existingUser is null)
             {
                 await unitOfWork.Users.AddAsync(synchronizedUser, cancellationToken);
+                await unitOfWork.UserTariffAssignments.AddAsync(
+                    new UserTariffAssignment(
+                        Guid.NewGuid(),
+                        synchronizedUser.Id,
+                        synchronizedUser.TariffId,
+                        syncedAtUtc,
+                        null,
+                        false,
+                        null,
+                        null,
+                        syncedAtUtc,
+                        "Первичное назначение тарифа при импорте пользователя из telemt.",
+                        "system:telemt-sync"),
+                    cancellationToken);
                 createdUsers++;
                 continue;
             }
@@ -53,7 +77,7 @@ public class TelemtUsersSyncService(
             updatedUsers++;
         }
 
-        foreach (ProxyUser localUser in localUsers)
+        foreach (ProxyUser localUser in serverUsers)
         {
             if (PendingConnectionUserConventions.IsPending(localUser))
             {
@@ -67,6 +91,7 @@ public class TelemtUsersSyncService(
 
             ProxyUser updatedUser = localUser with
             {
+                IsTelemtAccessActive = false,
                 ManualHandlingStatus = ManualHandlingStatus.Required,
                 ManualHandlingReason = MISSING_IN_TELEMT_REASON,
                 LastSyncedAtUtc = syncedAtUtc
@@ -86,15 +111,6 @@ public class TelemtUsersSyncService(
             snapshot.Users.Count,
             markedForManualHandlingUsers,
             syncedAtUtc);
-    }
-
-    private async Task<ProxyServer> EnsureServerAsync(CancellationToken cancellationToken)
-    {
-        Uri apiUri = CreateApiUri();
-        ProxyServer server = await unitOfWork.Servers.GetActiveByEndpointAsync(apiUri.Host, apiUri.Port, cancellationToken)
-            ?? throw new InvalidOperationException($"Активный сервер с хостом '{apiUri.Host}' и портом '{apiUri.Port}' не найден в базе данных.");
-
-        return server;
     }
 
     private async Task<TariffDefinition> GetDefaultTariffAsync(CancellationToken cancellationToken)
@@ -132,6 +148,7 @@ public class TelemtUsersSyncService(
             existingUser?.TariffSettings,
             existingUser?.BalanceRub ?? 0m,
             telemtUser.ExpirationUtc,
+            IsTelemtAccessActive(telemtUser.ExpirationUtc, syncedAtUtc),
             existingUser?.ManualHandlingStatus ?? ManualHandlingStatus.NotRequired,
             existingUser?.ManualHandlingReason,
             telemtUser.UserAdTag,
@@ -139,6 +156,11 @@ public class TelemtUsersSyncService(
             telemtUser.MaxUniqueIps,
             revision,
             syncedAtUtc);
+    }
+
+    private static bool IsTelemtAccessActive(DateTimeOffset? expirationUtc, DateTimeOffset nowUtc)
+    {
+        return expirationUtc is null || expirationUtc > nowUtc;
     }
 
     private static Dictionary<string, ProxyUser> BuildLocalUsersByTelemtId(IReadOnlyList<ProxyUser> localUsers)
@@ -156,20 +178,5 @@ public class TelemtUsersSyncService(
         }
 
         return usersByTelemtId;
-    }
-
-    private Uri CreateApiUri()
-    {
-        if (!Uri.TryCreate(telemtOptions.Value.ApiBaseUrl, UriKind.Absolute, out Uri? apiUri))
-        {
-            throw new InvalidOperationException("Адрес telemt API должен быть задан абсолютным URL.");
-        }
-
-        return apiUri;
-    }
-
-    private void ValidateOptions()
-    {
-        CreateApiUri();
     }
 }

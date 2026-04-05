@@ -14,7 +14,8 @@ public class ProxyAccessHubUnitOfWork(
     ITariffDefinitionRepository tariffs,
     IPaymentRequestRepository paymentRequests,
     IPaymentRepository payments,
-    ISubscriptionRepository subscriptions) : IProxyAccessHubUnitOfWork
+    ISubscriptionRepository subscriptions,
+    IUserTariffAssignmentRepository userTariffAssignments) : IProxyAccessHubUnitOfWork
 {
     /// <inheritdoc />
     public IProxyUserRepository Users { get; } = users;
@@ -33,6 +34,9 @@ public class ProxyAccessHubUnitOfWork(
 
     /// <inheritdoc />
     public ISubscriptionRepository Subscriptions { get; } = subscriptions;
+
+    /// <inheritdoc />
+    public IUserTariffAssignmentRepository UserTariffAssignments { get; } = userTariffAssignments;
 
     /// <inheritdoc />
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)

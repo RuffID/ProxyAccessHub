@@ -40,6 +40,24 @@ public interface IAdminUserManagementService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Назначает пользователю trial-тариф.
+    /// </summary>
+    /// <param name="userId">Локальный идентификатор пользователя.</param>
+    /// <param name="trialTariffId">Идентификатор trial-тарифа.</param>
+    /// <param name="trialDurationDays">Длительность trial в днях.</param>
+    /// <param name="nextTariffId">Идентификатор тарифа после окончания trial.</param>
+    /// <param name="comment">Комментарий к назначению.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Задача завершения операции.</returns>
+    Task AssignTrialAsync(
+        Guid userId,
+        Guid trialTariffId,
+        int trialDurationDays,
+        Guid nextTariffId,
+        string? comment,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Создаёт пользователя через административный интерфейс.
     /// </summary>
     /// <param name="telemtUserId">Идентификатор пользователя в telemt.</param>
@@ -54,6 +72,22 @@ public interface IAdminUserManagementService
         Guid tariffId,
         decimal? customPeriodPriceRub,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Активирует пользователя в telemt по локально сохранённому сроку доступа.
+    /// </summary>
+    /// <param name="userId">Локальный идентификатор пользователя.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Задача завершения операции.</returns>
+    Task ActivateUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Деактивирует пользователя в telemt.
+    /// </summary>
+    /// <param name="userId">Локальный идентификатор пользователя.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Задача завершения операции.</returns>
+    Task DeactivateUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Помечает ручную обработку пользователя как завершённую.

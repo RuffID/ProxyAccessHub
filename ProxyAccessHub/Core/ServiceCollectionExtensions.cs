@@ -103,9 +103,6 @@ public static class ServiceCollectionExtensions
             configuration.GetSection(AdminAccessOptions.SECTION_NAME));
         services.Configure<YooMoneyOptions>(
             configuration.GetSection(YooMoneyOptions.SECTION_NAME));
-        services.Configure<TelemtOptions>(
-            configuration.GetSection(TelemtOptions.SECTION_NAME));
-
         return services;
     }
 }

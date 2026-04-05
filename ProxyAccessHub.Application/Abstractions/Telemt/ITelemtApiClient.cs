@@ -1,4 +1,5 @@
 using ProxyAccessHub.Application.Models.Telemt;
+using ProxyAccessHub.Domain.Entities;
 
 namespace ProxyAccessHub.Application.Abstractions.Telemt;
 
@@ -12,7 +13,7 @@ public interface ITelemtApiClient
     /// </summary>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Снимок пользователей telemt.</returns>
-    Task<TelemtUsersSnapshot> GetUsersAsync(CancellationToken cancellationToken = default);
+    Task<TelemtUsersSnapshot> GetUsersAsync(ProxyServer server, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Создаёт нового пользователя в telemt.
@@ -22,7 +23,10 @@ public interface ITelemtApiClient
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Результат создания пользователя в telemt.</returns>
     Task<TelemtCreatedUserResult> CreateUserAsync(
+        ProxyServer server,
         string username,
         DateTimeOffset expirationUtc,
+        int maxTcpConnections,
+        int maxUniqueIps,
         CancellationToken cancellationToken = default);
 }

@@ -10,4 +10,6 @@ public sealed record AdminServerListItem(
     int ApiPort,
     string ApiBearerToken,
     int MaxUsers,
-    bool IsActive);
+    bool IsActive,
+    bool SyncEnabled,
+    int SyncIntervalMinutes);

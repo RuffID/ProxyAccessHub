@@ -7,8 +7,12 @@ namespace ProxyAccessHub.Domain.Entities;
 /// <param name="Code">Код сервера.</param>
 /// <param name="Name">Отображаемое название сервера.</param>
 /// <param name="Host">Хост или адрес сервера.</param>
+/// <param name="ApiPort">Порт telemt API сервера.</param>
+/// <param name="ApiBearerToken">Bearer-токен telemt API сервера.</param>
 /// <param name="MaxUsers">Лимит пользователей на сервере.</param>
 /// <param name="IsActive">Признак активности сервера.</param>
+/// <param name="SyncEnabled">Признак включённой фоновой синхронизации сервера.</param>
+/// <param name="SyncIntervalMinutes">Интервал фоновой синхронизации сервера в минутах.</param>
 public record ProxyServer(
     Guid Id,
     string Code,
@@ -17,4 +21,6 @@ public record ProxyServer(
     int ApiPort,
     string ApiBearerToken,
     int MaxUsers,
-    bool IsActive);
+    bool IsActive,
+    bool SyncEnabled,
+    int SyncIntervalMinutes);

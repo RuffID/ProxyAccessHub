@@ -32,6 +32,7 @@ public record ProxyUser(
     UserTariffSettings? TariffSettings,
     decimal BalanceRub,
     DateTimeOffset? AccessPaidToUtc,
+    bool IsTelemtAccessActive,
     ManualHandlingStatus ManualHandlingStatus,
     string? ManualHandlingReason,
     string? UserAdTag,

@@ -2,6 +2,7 @@ using ProxyAccessHub.Application.Abstractions.Administration;
 using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Application.Models.Administration;
 using ProxyAccessHub.Domain.Entities;
+using ProxyAccessHub.Domain.Tariffs;
 
 namespace ProxyAccessHub.Application.Services.Administration;
 
@@ -10,10 +11,6 @@ namespace ProxyAccessHub.Application.Services.Administration;
 /// </summary>
 public class AdminTariffManagementService(IProxyAccessHubUnitOfWork unitOfWork) : IAdminTariffManagementService
 {
-    private const int MONTHLY_PERIOD_MONTHS = 1;
-    private const int YEARLY_PERIOD_MONTHS = 12;
-    private const int UNLIMITED_PERIOD_MONTHS = 0;
-
     /// <inheritdoc />
     public async Task<AdminTariffsPageData> GetPageDataAsync(CancellationToken cancellationToken = default)
     {
@@ -50,8 +47,8 @@ public class AdminTariffManagementService(IProxyAccessHubUnitOfWork unitOfWork) 
             name.Trim(),
             decimal.Round(periodPriceRub, 2, MidpointRounding.AwayFromZero),
             periodMonths,
-            IsUnlimitedPeriod(periodMonths),
-            RequiresRenewal(periodMonths),
+            TariffPeriodHelper.IsUnlimited(periodMonths),
+            TariffPeriodHelper.RequiresRenewal(periodMonths),
             isActive,
             isDefault);
 
@@ -88,8 +85,8 @@ public class AdminTariffManagementService(IProxyAccessHubUnitOfWork unitOfWork) 
             Name = name.Trim(),
             PeriodPriceRub = decimal.Round(periodPriceRub, 2, MidpointRounding.AwayFromZero),
             PeriodMonths = periodMonths,
-            IsUnlimited = IsUnlimitedPeriod(periodMonths),
-            RequiresRenewal = RequiresRenewal(periodMonths),
+            IsUnlimited = TariffPeriodHelper.IsUnlimited(periodMonths),
+            RequiresRenewal = TariffPeriodHelper.RequiresRenewal(periodMonths),
             IsActive = isActive,
             IsDefault = isDefault
         };
@@ -125,9 +122,7 @@ public class AdminTariffManagementService(IProxyAccessHubUnitOfWork unitOfWork) 
             throw new InvalidOperationException("Стоимость тарифа не может быть отрицательной.");
         }
 
-        if (periodMonths != MONTHLY_PERIOD_MONTHS
-            && periodMonths != YEARLY_PERIOD_MONTHS
-            && periodMonths != UNLIMITED_PERIOD_MONTHS)
+        if (!TariffPeriodHelper.IsSupported(periodMonths))
         {
             throw new InvalidOperationException("Срок действия тарифа должен быть равен 1, 12 месяцам или значению 'Навсегда'.");
         }
@@ -137,12 +132,12 @@ public class AdminTariffManagementService(IProxyAccessHubUnitOfWork unitOfWork) 
             throw new InvalidOperationException("Тариф по умолчанию должен быть активным.");
         }
 
-        if (IsUnlimitedPeriod(periodMonths) && periodPriceRub != 0m)
+        if (TariffPeriodHelper.IsUnlimited(periodMonths) && periodPriceRub != 0m)
         {
             throw new InvalidOperationException("Бессрочный тариф должен иметь стоимость 0 рублей.");
         }
 
-        if (isDefault && (IsUnlimitedPeriod(periodMonths) || periodPriceRub == 0m))
+        if (isDefault && (TariffPeriodHelper.IsUnlimited(periodMonths) || periodPriceRub == 0m))
         {
             throw new InvalidOperationException("Тариф по умолчанию должен оставаться платным периодическим тарифом.");
         }
@@ -167,13 +162,4 @@ public class AdminTariffManagementService(IProxyAccessHubUnitOfWork unitOfWork) 
         }
     }
 
-    private static bool IsUnlimitedPeriod(int periodMonths)
-    {
-        return periodMonths == UNLIMITED_PERIOD_MONTHS;
-    }
-
-    private static bool RequiresRenewal(int periodMonths)
-    {
-        return !IsUnlimitedPeriod(periodMonths);
-    }
 }

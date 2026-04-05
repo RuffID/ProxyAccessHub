@@ -17,12 +17,12 @@ public interface IAdminServerManagementService
     /// <summary>
     /// Создаёт новый сервер.
     /// </summary>
-    Task CreateAsync(string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, CancellationToken cancellationToken = default);
+    Task CreateAsync(string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, bool syncEnabled, int syncIntervalMinutes, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Обновляет существующий сервер.
     /// </summary>
-    Task UpdateAsync(Guid id, string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Guid id, string name, string host, int apiPort, string apiBearerToken, int maxUsers, bool isActive, bool syncEnabled, int syncIntervalMinutes, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Проверяет доступность сервера по сохранённым настройкам telemt API.

@@ -1,5 +1,6 @@
 using ProxyAccessHub.Application.Abstractions.Tariffs;
 using ProxyAccessHub.Application.Models.Tariffs;
+using ProxyAccessHub.Domain.Tariffs;
 
 namespace ProxyAccessHub.Application.Services.Tariffs;
 
@@ -61,7 +62,10 @@ public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceReso
         DateTimeOffset renewalAppliedFromUtc = request.AccessPaidToUtc is { } accessPaidToUtc && accessPaidToUtc > request.CalculatedAtUtc
             ? accessPaidToUtc
             : request.CalculatedAtUtc;
-        DateTimeOffset newAccessPaidToUtc = renewalAppliedFromUtc.AddMonths(purchasedPeriods * request.Tariff.PeriodMonths);
+        DateTimeOffset newAccessPaidToUtc = TariffPeriodHelper.ApplyPeriods(
+            renewalAppliedFromUtc,
+            request.Tariff.PeriodMonths,
+            purchasedPeriods);
 
         return new TariffRenewalCalculationResult(
             request.Tariff.Id,

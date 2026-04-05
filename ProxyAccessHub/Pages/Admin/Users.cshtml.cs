@@ -98,6 +98,70 @@ public sealed class UsersModel(IAdminUserManagementService adminUserManagementSe
         }
     }
 
+    /// <summary>
+    /// Назначает пользователю trial-тариф.
+    /// </summary>
+    public async Task<IActionResult> OnPostAssignTrialAsync(
+        Guid userId,
+        Guid trialTariffId,
+        string trialDurationDays,
+        Guid nextTariffId,
+        string? comment)
+    {
+        if (!int.TryParse(trialDurationDays, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedTrialDurationDays))
+        {
+            return CreateErrorResult(StatusCodes.Status400BadRequest, "Длительность trial должна быть целым числом дней.");
+        }
+
+        try
+        {
+            await adminUserManagementService.AssignTrialAsync(
+                userId,
+                trialTariffId,
+                parsedTrialDurationDays,
+                nextTariffId,
+                comment,
+                HttpContext.RequestAborted);
+            return CreateSuccessResult();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
+        {
+            return CreateErrorResult(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Активирует пользователя в telemt.
+    /// </summary>
+    public async Task<IActionResult> OnPostActivateAsync(Guid userId)
+    {
+        try
+        {
+            await adminUserManagementService.ActivateUserAsync(userId, HttpContext.RequestAborted);
+            return CreateSuccessResult();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
+        {
+            return CreateErrorResult(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Деактивирует пользователя в telemt.
+    /// </summary>
+    public async Task<IActionResult> OnPostDeactivateAsync(Guid userId)
+    {
+        try
+        {
+            await adminUserManagementService.DeactivateUserAsync(userId, HttpContext.RequestAborted);
+            return CreateSuccessResult();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException)
+        {
+            return CreateErrorResult(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
     private static JsonResult CreateSuccessResult()
     {
         return new JsonResult(new

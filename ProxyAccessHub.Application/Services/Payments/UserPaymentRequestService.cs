@@ -24,10 +24,13 @@ public class UserPaymentRequestService(
     /// <inheritdoc />
     public async Task<YooMoneyPaymentFormModel> GetOrCreateAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        Guid billingTariffId = Guid.Empty;
         ProxyUser user = await unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("Пользователь для оплаты не найден.");
 
-        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(user.TariffId, cancellationToken)
+        billingTariffId = await ResolveBillingTariffIdAsync(user, cancellationToken);
+
+        TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(billingTariffId, cancellationToken)
             ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
 
         if (!tariff.RequiresRenewal || tariff.IsUnlimited)
@@ -105,5 +108,18 @@ public class UserPaymentRequestService(
             paymentRequest.AmountRub,
             yooMoneyOptions.Value.SuccessUrl.Trim(),
             paymentRequest.ExpiresAtUtc);
+    }
+
+    private async Task<Guid> ResolveBillingTariffIdAsync(ProxyUser user, CancellationToken cancellationToken)
+    {
+        UserTariffAssignment? activeAssignment = await unitOfWork.UserTariffAssignments.GetActiveByUserIdAsync(user.Id, cancellationToken);
+
+        if (activeAssignment?.IsTrial != true)
+        {
+            return user.TariffId;
+        }
+
+        return activeAssignment.NextTariffId
+            ?? throw new InvalidOperationException($"У активного trial пользователя '{user.TelemtUserId}' не указан следующий тариф.");
     }
 }
