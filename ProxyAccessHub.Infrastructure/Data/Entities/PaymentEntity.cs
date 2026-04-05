@@ -29,9 +29,14 @@ public class PaymentEntity : IEntity<Guid>
     public string ProviderOperationId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Сумма платежа в рублях.
+    /// Сумма, которая была применена к локальной заявке в рублях.
     /// </summary>
     public decimal AmountRub { get; set; }
+
+    /// <summary>
+    /// Фактическая сумма входящего платежа в рублях.
+    /// </summary>
+    public decimal? ActualAmountRub { get; set; }
 
     /// <summary>
     /// Дата получения платежа в UTC.

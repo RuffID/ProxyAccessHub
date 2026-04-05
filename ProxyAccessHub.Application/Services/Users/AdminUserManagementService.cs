@@ -26,6 +26,7 @@ public sealed class AdminUserManagementService(
     IProxyAccessHubUnitOfWork unitOfWork,
     ITariffPriceResolver tariffPriceResolver,
     ITelemtSyncStateStore telemtSyncStateStore,
+    IProxyUserAccessService proxyUserAccessService,
     IAdminServerManagementService adminServerManagementService,
     IHttpClientFactory httpClientFactory,
     IOptions<ProxyAccessHubOptions> proxyAccessHubOptions) : IAdminUserManagementService
@@ -176,19 +177,17 @@ public sealed class AdminUserManagementService(
 
         DateTimeOffset assignedAtUtc = DateTimeOffset.UtcNow;
         DateTimeOffset trialEndsAtUtc = assignedAtUtc.AddDays(trialDurationDays);
-        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(user.ServerId, cancellationToken)
-            ?? throw new KeyNotFoundException("Сервер пользователя для назначения trial не найден.");
         DateTimeOffset telemtExpirationUtc = user.AccessPaidToUtc.HasValue && user.AccessPaidToUtc.Value > trialEndsAtUtc
             ? user.AccessPaidToUtc.Value
             : trialEndsAtUtc;
-
-        await UpdateTelemtUserExpirationAsync(server, user.TelemtUserId, telemtExpirationUtc, cancellationToken);
-
-        ProxyUser updatedUser = user with
+        ProxyUser activatedUser = await proxyUserAccessService.ActivateAsync(
+            user,
+            telemtExpirationUtc,
+            cancellationToken);
+        ProxyUser updatedUser = activatedUser with
         {
             TariffId = trialTariff.Id,
-            AccessPaidToUtc = telemtExpirationUtc,
-            IsTelemtAccessActive = true
+            AccessPaidToUtc = telemtExpirationUtc
         };
         UserTariffAssignment completedAssignment = activeAssignment with
         {
@@ -270,8 +269,6 @@ public sealed class AdminUserManagementService(
             ManualHandlingStatus.NotRequired,
             null,
             createdUser.User.UserAdTag,
-            createdUser.User.MaxTcpConnections,
-            createdUser.User.MaxUniqueIps,
             createdUser.Revision,
             createdAtUtc);
         Subscription subscription = new(
@@ -333,15 +330,10 @@ public sealed class AdminUserManagementService(
             activationExpirationUtc = user.AccessPaidToUtc!.Value;
         }
 
-        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(user.ServerId, cancellationToken)
-            ?? throw new KeyNotFoundException("Сервер пользователя не найден.");
-
-        await UpdateTelemtUserExpirationAsync(server, user.TelemtUserId, activationExpirationUtc, cancellationToken);
-        ProxyUser updatedUser = user with
-        {
-            AccessPaidToUtc = activationExpirationUtc,
-            IsTelemtAccessActive = true
-        };
+        ProxyUser updatedUser = await proxyUserAccessService.ActivateAsync(
+            user,
+            activationExpirationUtc,
+            cancellationToken);
 
         await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -358,15 +350,9 @@ public sealed class AdminUserManagementService(
             throw new InvalidOperationException("Нельзя деактивировать пользователя, который ещё не создан в telemt.");
         }
 
-        ProxyServer server = await unitOfWork.Servers.GetByIdAsync(user.ServerId, cancellationToken)
-            ?? throw new KeyNotFoundException("Сервер пользователя не найден.");
-        DateTimeOffset disabledAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1);
-
-        await UpdateTelemtUserExpirationAsync(server, user.TelemtUserId, disabledAtUtc, cancellationToken);
-        ProxyUser updatedUser = user with
-        {
-            IsTelemtAccessActive = false
-        };
+        ProxyUser updatedUser = await proxyUserAccessService.DeactivateAsync(
+            user,
+            cancellationToken);
 
         await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -587,34 +573,6 @@ public sealed class AdminUserManagementService(
         }
 
         throw new InvalidOperationException($"Не удалось проверить уникальность пользователя '{telemtUserId}' на сервере '{server.Name}'. Код: {(int)response.StatusCode}. Ответ: {responseContent}");
-    }
-
-    private async Task UpdateTelemtUserExpirationAsync(
-        ProxyServer server,
-        string telemtUserId,
-        DateTimeOffset expirationUtc,
-        CancellationToken cancellationToken)
-    {
-        HttpClient httpClient = httpClientFactory.CreateClient();
-        httpClient.Timeout = TimeSpan.FromSeconds(API_TIMEOUT_SECONDS);
-        Uri requestUri = BuildTelemtUserUri(server.Host, server.ApiPort, telemtUserId);
-        using HttpRequestMessage request = new(HttpMethod.Patch, requestUri);
-        request.Headers.TryAddWithoutValidation("Authorization", BuildAuthorizationHeader(server.ApiBearerToken));
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(new Dictionary<string, object?>
-            {
-                ["expiration_rfc3339"] = expirationUtc.UtcDateTime.ToString("O")
-            }),
-            Encoding.UTF8,
-            "application/json");
-
-        using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
-        string responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"Не удалось обновить состояние пользователя '{telemtUserId}' на сервере '{server.Name}'. Код: {(int)response.StatusCode}. Ответ: {responseContent}");
-        }
     }
 
     private static UserTariffSettings BuildCustomPriceSettings(TariffDefinition tariff, decimal customPeriodPriceRub)

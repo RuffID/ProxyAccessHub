@@ -5,7 +5,7 @@ using ProxyAccessHub.Domain.Tariffs;
 namespace ProxyAccessHub.Application.Services.Tariffs;
 
 /// <summary>
-/// Выполняет базовый расчёт продления с учётом только полных периодов.
+/// Выполняет расчёт списания и продления ровно на один период тарифа.
 /// </summary>
 public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceResolver) : ITariffRenewalCalculator
 {
@@ -22,7 +22,7 @@ public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceReso
             return new TariffRenewalCalculationResult(
                 request.Tariff.Id,
                 0m,
-                0,
+                false,
                 0m,
                 request.BalanceRub,
                 null,
@@ -37,21 +37,12 @@ public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceReso
             throw new InvalidOperationException($"Для тарифа '{request.Tariff.Id}' цена периода должна быть больше нуля.");
         }
 
-        int purchasedPeriods = decimal.ToInt32(decimal.Floor(request.BalanceRub / effectivePeriodPriceRub));
-        decimal chargedAmountRub = purchasedPeriods * effectivePeriodPriceRub;
-        decimal remainingBalanceRub = request.BalanceRub - chargedAmountRub;
-
-        if (remainingBalanceRub < 0m)
-        {
-            throw new InvalidOperationException("Остаток баланса после расчёта не может быть отрицательным.");
-        }
-
-        if (purchasedPeriods == 0)
+        if (request.BalanceRub < effectivePeriodPriceRub)
         {
             return new TariffRenewalCalculationResult(
                 request.Tariff.Id,
                 effectivePeriodPriceRub,
-                0,
+                false,
                 0m,
                 request.BalanceRub,
                 null,
@@ -59,18 +50,25 @@ public sealed class TariffRenewalCalculator(ITariffPriceResolver tariffPriceReso
                 true);
         }
 
+        decimal chargedAmountRub = effectivePeriodPriceRub;
+        decimal remainingBalanceRub = request.BalanceRub - chargedAmountRub;
+
+        if (remainingBalanceRub < 0m)
+        {
+            throw new InvalidOperationException("Остаток баланса после расчёта не может быть отрицательным.");
+        }
+
         DateTimeOffset renewalAppliedFromUtc = request.AccessPaidToUtc is { } accessPaidToUtc && accessPaidToUtc > request.CalculatedAtUtc
             ? accessPaidToUtc
             : request.CalculatedAtUtc;
         DateTimeOffset newAccessPaidToUtc = TariffPeriodHelper.ApplyPeriods(
             renewalAppliedFromUtc,
-            request.Tariff.PeriodMonths,
-            purchasedPeriods);
+            request.Tariff.PeriodMonths);
 
         return new TariffRenewalCalculationResult(
             request.Tariff.Id,
             effectivePeriodPriceRub,
-            purchasedPeriods,
+            true,
             chargedAmountRub,
             remainingBalanceRub,
             renewalAppliedFromUtc,

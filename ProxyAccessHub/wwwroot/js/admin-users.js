@@ -155,7 +155,7 @@ function buildTableCard() {
         createHeaderContent("Тариф"),
         createHeaderContent("Баланс"),
         createHeaderContent("Оплачено до", "Дата и время, до которых у пользователя оплачен доступ. Если значение пустое, оплаченного периода сейчас нет."),
-        createHeaderContent("Ручная обработка", "Показывает, требуется ли вмешательство администратора из-за проблем синхронизации или несогласованных данных."),
+        createHeaderContent("Статус", "Показывает текущее состояние доступа пользователя: активен, неактивен или требует внимания из-за ошибки продления."),
         createHeaderContent("Действия")
     ];
 
@@ -580,29 +580,58 @@ function createTariffSelect(user) {
 
 function buildManualHandlingCell(user) {
     const cell = createElement("td", ["px-3", "py-3"]);
-    const wrapper = createElement("div", ["d-flex", "flex-column", "gap-2"]);
-    const badge = createElement("span", ["fw-semibold"]);
-    const reason = createElement("div", ["small", "text-body-secondary"]);
+    const wrapper = createElement("div", ["d-inline-flex", "align-items-start", "gap-2"]);
+    const badge = createElement("span", ["fw-semibold", "text-nowrap"]);
+    const statusInfo = resolveUserStatus(user);
 
-    badge.textContent = user.manualHandlingStatusName;
+    badge.textContent = statusInfo.name;
+    badge.classList.add(statusInfo.textClass);
+    wrapper.append(badge);
 
-    if (user.requiresManualHandling) {
-        badge.classList.add("text-danger");
-    }
-    else {
-        badge.classList.add("text-body");
-    }
-
-    if (user.manualHandlingReason) {
-        reason.textContent = user.manualHandlingReason;
-        wrapper.append(badge, reason);
-    }
-    else {
-        wrapper.append(badge);
+    if (statusInfo.reason) {
+        wrapper.append(createStatusReasonPopoverButton(statusInfo.reason));
     }
 
     cell.append(wrapper);
     return cell;
+}
+
+function resolveUserStatus(user) {
+    if (user.requiresManualHandling) {
+        return {
+            name: "Ошибка продления",
+            textClass: "text-danger",
+            reason: user.manualHandlingReason ?? ""
+        };
+    }
+
+    return user.isTelemtAccessActive
+        ? {
+            name: "Активен",
+            textClass: "text-success",
+            reason: ""
+        }
+        : {
+            name: "Неактивен",
+            textClass: "text-body",
+            reason: ""
+        };
+}
+
+function createStatusReasonPopoverButton(reason) {
+    const button = createElement("button", ["btn", "btn-danger", "btn-sm", "rounded-circle", "d-inline-flex", "justify-content-center", "align-items-center", "fw-bold", "flex-shrink-0", "p-0"]);
+    button.type = "button";
+    button.style.width = "1.25rem";
+    button.style.height = "1.25rem";
+    button.style.lineHeight = "1";
+    button.setAttribute("aria-label", reason);
+    button.setAttribute("data-bs-toggle", "popover");
+    button.setAttribute("data-bs-trigger", "hover focus");
+    button.setAttribute("data-bs-placement", "top");
+    button.setAttribute("data-bs-content", reason);
+    button.textContent = "!";
+    new bootstrap.Popover(button);
+    return button;
 }
 
 function buildUserActionsCell(user) {

@@ -1,0 +1,15 @@
+@page
+@model ProxyAccessHub.Pages.Admin.PaymentsModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "Платежи";
+    string? requestVerificationToken = Antiforgery.GetAndStoreTokens(HttpContext).RequestToken;
+}
+
+<meta name="request-verification-token" content="@requestVerificationToken" />
+
+<main class="container py-4 py-lg-5">
+    <div id="adminPaymentsPage"></div>
+</main>
+
+<script src="~/js/admin-payments.js"></script>

@@ -97,8 +97,6 @@ public class ProxyUserRepository(
             ManualHandlingStatus = user.ManualHandlingStatus,
             ManualHandlingReason = user.ManualHandlingReason,
             UserAdTag = user.UserAdTag,
-            MaxTcpConnections = user.MaxTcpConnections,
-            MaxUniqueIps = user.MaxUniqueIps,
             TelemtRevision = user.TelemtRevision,
             LastSyncedAtUtc = user.LastSyncedAtUtc
         };
@@ -124,8 +122,6 @@ public class ProxyUserRepository(
             entity.ManualHandlingStatus,
             entity.ManualHandlingReason,
             entity.UserAdTag,
-            entity.MaxTcpConnections,
-            entity.MaxUniqueIps,
             entity.TelemtRevision,
             entity.LastSyncedAtUtc);
     }

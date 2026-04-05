@@ -128,7 +128,8 @@ public class ProxyServerRepository(
             MaxUsers = server.MaxUsers,
             IsActive = server.IsActive,
             SyncEnabled = server.SyncEnabled,
-            SyncIntervalMinutes = server.SyncIntervalMinutes
+            SyncIntervalMinutes = server.SyncIntervalMinutes,
+            LastDailyRenewalProcessedDateUtc = server.LastDailyRenewalProcessedDateUtc
         };
     }
 
@@ -144,7 +145,8 @@ public class ProxyServerRepository(
             entity.MaxUsers,
             entity.IsActive,
             entity.SyncEnabled,
-            entity.SyncIntervalMinutes);
+            entity.SyncIntervalMinutes,
+            entity.LastDailyRenewalProcessedDateUtc);
     }
 
     private static void ValidateServer(ProxyServer server)

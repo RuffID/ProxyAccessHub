@@ -9,7 +9,7 @@ using ProxyAccessHub.Infrastructure.Telemt.Models;
 namespace ProxyAccessHub.Infrastructure.Telemt;
 
 /// <summary>
-/// HTTP-клиент чтения данных из telemt API.
+/// HTTP-клиент чтения и обновления данных через telemt API.
 /// </summary>
 public class TelemtApiClient(IHttpClientFactory httpClientFactory) : ITelemtApiClient
 {
@@ -144,6 +144,39 @@ public class TelemtApiClient(IHttpClientFactory httpClientFactory) : ITelemtApiC
             envelope.Data.Secret.Trim());
     }
 
+    /// <inheritdoc />
+    public async Task UpdateUserExpirationAsync(
+        ProxyServer server,
+        string username,
+        DateTimeOffset expirationUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            throw new InvalidOperationException("Не задан идентификатор пользователя telemt для обновления срока действия.");
+        }
+
+        HttpClient httpClient = CreateHttpClient();
+        using HttpRequestMessage request = new(HttpMethod.Patch, BuildUserUri(server, username.Trim()));
+        request.Headers.TryAddWithoutValidation("Authorization", BuildAuthorizationHeader(server.ApiBearerToken));
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(new
+            {
+                expiration_rfc3339 = expirationUtc.UtcDateTime.ToString("O")
+            }),
+            Encoding.UTF8,
+            "application/json");
+
+        using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+        string responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Telemt API не обновил срок действия пользователя '{username.Trim()}' на сервере '{server.Name}'. Код ответа: {(int)response.StatusCode}. Ответ: {responseContent}");
+        }
+    }
+
     private static TelemtUserSnapshot Map(TelemtUserResponse response)
     {
         if (string.IsNullOrWhiteSpace(response.Username))
@@ -186,6 +219,26 @@ public class TelemtApiClient(IHttpClientFactory httpClientFactory) : ITelemtApiC
         }
 
         return new UriBuilder(apiScheme, apiHost, server.ApiPort, "/v1/users").Uri;
+    }
+
+    private static Uri BuildUserUri(ProxyServer server, string username)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            throw new InvalidOperationException("Не задан идентификатор пользователя telemt.");
+        }
+
+        if (!TryExtractApiEndpoint(server.Host, out string? apiScheme, out string? apiHost))
+        {
+            throw new InvalidOperationException($"Хост сервера '{server.Host}' имеет неверный формат.");
+        }
+
+        if (server.ApiPort is <= 0 or > 65535)
+        {
+            throw new InvalidOperationException("Порт API сервера должен быть в диапазоне от 1 до 65535.");
+        }
+
+        return new UriBuilder(apiScheme, apiHost, server.ApiPort, $"/v1/users/{Uri.EscapeDataString(username.Trim())}").Uri;
     }
 
     private static string BuildAuthorizationHeader(string apiBearerToken)

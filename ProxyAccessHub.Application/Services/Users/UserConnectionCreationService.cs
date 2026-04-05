@@ -23,7 +23,7 @@ public sealed class UserConnectionCreationService(
     IUserPaymentRequestService userPaymentRequestService,
     ITelemtApiClient telemtApiClient,
     IOptions<ProxyAccessHubOptions> proxyAccessHubOptions,
-    IOptions<YooMoneyOptions> yooMoneyOptions) : IUserConnectionCreationService
+    IYooMoneySettingsStore yooMoneySettingsStore) : IUserConnectionCreationService
 {
     /// <inheritdoc />
     public async Task<NewConnectionOffer> GetOfferAsync(CancellationToken cancellationToken = default)
@@ -61,8 +61,6 @@ public sealed class UserConnectionCreationService(
             ManualHandlingStatus.NotRequired,
             null,
             null,
-            null,
-            null,
             PendingConnectionUserConventions.GetPendingRevision(),
             createdAtUtc);
 
@@ -72,7 +70,7 @@ public sealed class UserConnectionCreationService(
         YooMoneyPaymentFormModel paymentForm = await userPaymentRequestService.GetOrCreateAsync(pendingUser.Id, cancellationToken);
         return paymentForm with
         {
-            SuccessUrl = BuildPaymentSuccessUrl(paymentForm.PaymentRequestId)
+            SuccessUrl = await BuildPaymentSuccessUrlAsync(paymentForm.PaymentRequestId, cancellationToken)
         };
     }
 
@@ -190,8 +188,6 @@ public sealed class UserConnectionCreationService(
             ManualHandlingStatus = ManualHandlingStatus.NotRequired,
             ManualHandlingReason = null,
             UserAdTag = createdUser.User.UserAdTag,
-            MaxTcpConnections = createdUser.User.MaxTcpConnections,
-            MaxUniqueIps = createdUser.User.MaxUniqueIps,
             TelemtRevision = createdUser.Revision,
             LastSyncedAtUtc = paidAtUtc
         };
@@ -263,14 +259,16 @@ public sealed class UserConnectionCreationService(
             ?? throw new InvalidOperationException("Не найден доступный активный сервер для создания нового подключения.");
     }
 
-    private string BuildPaymentSuccessUrl(Guid paymentRequestId)
+    private async Task<string> BuildPaymentSuccessUrlAsync(Guid paymentRequestId, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(yooMoneyOptions.Value.SuccessUrl))
+        YooMoneySettingsSnapshot yooMoneySettings = await yooMoneySettingsStore.GetAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(yooMoneySettings.SuccessUrl))
         {
             throw new InvalidOperationException("В конфигурации YooMoney не задан URL возврата после оплаты.");
         }
 
-        Uri baseUri = new(yooMoneyOptions.Value.SuccessUrl.Trim(), UriKind.Absolute);
+        Uri baseUri = new(yooMoneySettings.SuccessUrl.Trim(), UriKind.Absolute);
         string separator = string.IsNullOrEmpty(baseUri.Query) ? "?" : "&";
         return baseUri + $"{separator}paymentRequestId={paymentRequestId:D}";
     }

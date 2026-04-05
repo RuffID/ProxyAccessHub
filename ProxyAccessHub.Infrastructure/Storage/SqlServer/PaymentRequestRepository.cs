@@ -16,6 +16,7 @@ public class PaymentRequestRepository(
     IAppDbContext<ProxyAccessHubDbContext> dbContext,
     IGetItemByIdRepository<PaymentRequestEntity, Guid, ProxyAccessHubDbContext> getByIdRepository,
     IGetItemByPredicateRepository<PaymentRequestEntity, ProxyAccessHubDbContext> getByPredicateRepository,
+    IQueryRepository<PaymentRequestEntity, ProxyAccessHubDbContext> queryRepository,
     ICreateItemRepository<PaymentRequestEntity, ProxyAccessHubDbContext> createRepository) : IPaymentRequestRepository
 {
     /// <inheritdoc />
@@ -24,6 +25,16 @@ public class PaymentRequestRepository(
         PaymentRequestEntity? entity = await getByIdRepository.GetItemByIdAsync(id, asNoTracking: true, ct: cancellationToken);
 
         return entity is null ? null : Map(entity);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<PaymentRequest>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        List<PaymentRequestEntity> entities = await queryRepository.Query(asNoTracking: true)
+            .OrderByDescending(request => request.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(Map).ToArray();
     }
 
     /// <inheritdoc />

@@ -9,34 +9,27 @@ using ProxyAccessHub.Domain.Enums;
 namespace ProxyAccessHub.Application.Services.Subscriptions;
 
 /// <summary>
-/// Реализует бизнес-логику продления подписки после поступления платежа.
+/// Реализует бизнес-логику продления подписки на один период в момент очередного списания.
 /// </summary>
 public class UserSubscriptionRenewalService(
     IProxyAccessHubUnitOfWork unitOfWork,
     ITariffRenewalCalculator tariffRenewalCalculator) : IUserSubscriptionRenewalService
 {
     /// <inheritdoc />
-    public async Task<UserSubscriptionRenewalResult> ApplyAsync(
+    public async Task<UserSubscriptionRenewalResult> TryRenewAsync(
         ProxyUser user,
         Subscription? currentSubscription,
-        decimal paymentAmountRub,
         DateTimeOffset calculatedAtUtc,
         CancellationToken cancellationToken = default)
     {
-        if (paymentAmountRub <= 0m)
-        {
-            throw new InvalidOperationException("Сумма входящего платежа должна быть больше нуля.");
-        }
-
         Guid billingTariffId = await ResolveBillingTariffIdAsync(user, cancellationToken);
         TariffDefinition tariff = await unitOfWork.Tariffs.GetByIdAsync(billingTariffId, cancellationToken)
             ?? throw new KeyNotFoundException($"Тариф '{user.TariffId}' не найден.");
 
-        decimal updatedBalanceRub = user.BalanceRub + paymentAmountRub;
         TariffRenewalCalculationResult calculation = tariffRenewalCalculator.Calculate(
             new TariffRenewalCalculationRequest(
                 tariff,
-                updatedBalanceRub,
+                user.BalanceRub,
                 calculatedAtUtc,
                 user.AccessPaidToUtc,
                 user.TariffSettings is null
@@ -64,12 +57,13 @@ public class UserSubscriptionRenewalService(
     {
         if (currentSubscription is null)
         {
-            if (!tariff.IsUnlimited && updatedUser.AccessPaidToUtc is null)
+            if (!calculation.RenewalApplied)
             {
                 return null;
             }
 
-            DateTimeOffset startedAtUtc = calculation.RenewalAppliedFromUtc ?? calculatedAtUtc;
+            DateTimeOffset startedAtUtc = calculation.RenewalAppliedFromUtc
+                ?? throw new InvalidOperationException("Для созданной подписки должен быть определён момент начала продления.");
             return new Subscription(
                 Guid.NewGuid(),
                 updatedUser.Id,

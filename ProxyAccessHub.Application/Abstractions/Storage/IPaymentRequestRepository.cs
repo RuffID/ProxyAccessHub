@@ -16,6 +16,13 @@ public interface IPaymentRequestRepository
     Task<PaymentRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Возвращает все заявки на оплату.
+    /// </summary>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Список всех заявок.</returns>
+    Task<IReadOnlyList<PaymentRequest>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Возвращает заявку по внешнему label.
     /// </summary>
     /// <param name="label">Внешний идентификатор заявки.</param>

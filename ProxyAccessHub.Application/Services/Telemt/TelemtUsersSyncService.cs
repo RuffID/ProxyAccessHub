@@ -152,8 +152,6 @@ public class TelemtUsersSyncService(
             existingUser?.ManualHandlingStatus ?? ManualHandlingStatus.NotRequired,
             existingUser?.ManualHandlingReason,
             telemtUser.UserAdTag,
-            telemtUser.MaxTcpConnections,
-            telemtUser.MaxUniqueIps,
             revision,
             syncedAtUtc);
     }

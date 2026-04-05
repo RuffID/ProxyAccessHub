@@ -16,12 +16,27 @@ public interface IPaymentRepository
     Task<Payment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Возвращает все платежи.
+    /// </summary>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Список всех платежей.</returns>
+    Task<IReadOnlyList<Payment>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Возвращает платёж по идентификатору операции провайдера.
     /// </summary>
     /// <param name="providerOperationId">Идентификатор операции провайдера.</param>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Найденный платёж или <see langword="null" />.</returns>
     Task<Payment?> GetByProviderOperationIdAsync(string providerOperationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Возвращает все платежи, привязанные к заявке.
+    /// </summary>
+    /// <param name="paymentRequestId">Идентификатор заявки.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Список платежей заявки.</returns>
+    Task<IReadOnlyList<Payment>> GetByPaymentRequestIdAsync(Guid paymentRequestId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Возвращает все платежи пользователя.
@@ -37,4 +52,11 @@ public interface IPaymentRepository
     /// <param name="payment">Платёж для добавления.</param>
     /// <param name="cancellationToken">Токен отмены.</param>
     Task AddAsync(Payment payment, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Обновляет платёж.
+    /// </summary>
+    /// <param name="payment">Платёж с обновлёнными данными.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    Task UpdateAsync(Payment payment, CancellationToken cancellationToken = default);
 }

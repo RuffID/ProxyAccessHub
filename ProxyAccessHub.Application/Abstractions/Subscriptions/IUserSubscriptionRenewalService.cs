@@ -4,23 +4,21 @@ using ProxyAccessHub.Domain.Entities;
 namespace ProxyAccessHub.Application.Abstractions.Subscriptions;
 
 /// <summary>
-/// Применяет платёж к балансу пользователя и рассчитывает новое состояние подписки.
+/// Выполняет одно продление подписки по наступившему сроку оплаты.
 /// </summary>
 public interface IUserSubscriptionRenewalService
 {
     /// <summary>
-    /// Применяет входящий платёж к пользователю и его подписке.
+    /// Выполняет списание стоимости одного периода и рассчитывает новое состояние подписки.
     /// </summary>
     /// <param name="user">Текущее состояние пользователя.</param>
     /// <param name="currentSubscription">Текущее состояние подписки пользователя.</param>
-    /// <param name="paymentAmountRub">Сумма входящего платежа в рублях.</param>
     /// <param name="calculatedAtUtc">Момент расчёта в UTC.</param>
     /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Обновлённые данные пользователя и подписки.</returns>
-    Task<UserSubscriptionRenewalResult> ApplyAsync(
+    Task<UserSubscriptionRenewalResult> TryRenewAsync(
         ProxyUser user,
         Subscription? currentSubscription,
-        decimal paymentAmountRub,
         DateTimeOffset calculatedAtUtc,
         CancellationToken cancellationToken = default);
 }

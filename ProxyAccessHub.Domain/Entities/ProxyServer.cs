@@ -13,6 +13,7 @@ namespace ProxyAccessHub.Domain.Entities;
 /// <param name="IsActive">Признак активности сервера.</param>
 /// <param name="SyncEnabled">Признак включённой фоновой синхронизации сервера.</param>
 /// <param name="SyncIntervalMinutes">Интервал фоновой синхронизации сервера в минутах.</param>
+/// <param name="LastDailyRenewalProcessedDateUtc">Дата последнего успешного суточного списания на сервере в UTC.</param>
 public record ProxyServer(
     Guid Id,
     string Code,
@@ -23,4 +24,5 @@ public record ProxyServer(
     int MaxUsers,
     bool IsActive,
     bool SyncEnabled,
-    int SyncIntervalMinutes);
+    int SyncIntervalMinutes,
+    DateTimeOffset? LastDailyRenewalProcessedDateUtc);

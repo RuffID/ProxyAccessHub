@@ -2,14 +2,11 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using ProxyAccessHub.Application.Abstractions.Payments;
 using ProxyAccessHub.Application.Abstractions.Storage;
-using ProxyAccessHub.Application.Abstractions.Subscriptions;
 using ProxyAccessHub.Application.Abstractions.Users;
 using ProxyAccessHub.Application.Configuration;
 using ProxyAccessHub.Application.Models.Payments;
-using ProxyAccessHub.Application.Models.Subscriptions;
 using ProxyAccessHub.Application.Models.Users;
 using ProxyAccessHub.Application.Services.Users;
 using ProxyAccessHub.Domain.Entities;
@@ -18,13 +15,12 @@ using ProxyAccessHub.Domain.Enums;
 namespace ProxyAccessHub.Application.Services.Payments;
 
 /// <summary>
-/// Обрабатывает уведомления YooMoney и применяет оплату к пользователю.
+/// Обрабатывает уведомления YooMoney и зачисляет оплату пользователю.
 /// </summary>
 public class YooMoneyNotificationService(
     IProxyAccessHubUnitOfWork unitOfWork,
-    IUserSubscriptionRenewalService userSubscriptionRenewalService,
     IUserConnectionCreationService userConnectionCreationService,
-    IOptions<YooMoneyOptions> yooMoneyOptions,
+    IYooMoneySettingsStore yooMoneySettingsStore,
     ILogger<YooMoneyNotificationService> logger) : IYooMoneyNotificationService
 {
     private const string EXPECTED_CURRENCY = "643";
@@ -33,7 +29,7 @@ public class YooMoneyNotificationService(
     public async Task ProcessAsync(YooMoneyNotificationModel notification, CancellationToken cancellationToken = default)
     {
         ValidateNotification(notification);
-        EnsureSignature(notification);
+        await EnsureSignatureAsync(notification, cancellationToken);
 
         Payment? existingPayment = await unitOfWork.Payments.GetByProviderOperationIdAsync(notification.OperationId, cancellationToken);
         if (existingPayment is not null)
@@ -49,10 +45,6 @@ public class YooMoneyNotificationService(
         PaymentRequest paymentRequest = await unitOfWork.PaymentRequests.GetByLabelAsync(notification.Label, cancellationToken)
             ?? throw new KeyNotFoundException("Заявка на оплату по указанному label не найдена.");
 
-        if (paymentRequest.Status != PaymentRequestStatus.Pending)
-        {
-            throw new InvalidOperationException("Заявка на оплату уже была обработана ранее.");
-        }
 
         if (paymentRequest.AmountRub != notification.WithdrawAmount)
         {
@@ -79,7 +71,7 @@ public class YooMoneyNotificationService(
 
             await ApplyRenewalPaymentAsync(paymentRequest, user, notification, receivedAtUtc, cancellationToken);
             logger.LogInformation(
-                "Платёж YooMoney применён к продлению: OperationId={OperationId}, UserId={UserId}, Label={Label}, Amount={Amount}",
+                "Платёж YooMoney зачислен на баланс пользователя: OperationId={OperationId}, UserId={UserId}, Label={Label}, Amount={Amount}",
                 notification.OperationId,
                 user.Id,
                 notification.Label,
@@ -94,26 +86,10 @@ public class YooMoneyNotificationService(
                 notification.OperationId,
                 user.Id,
                 notification.Label,
-                notification.Amount,
+                notification.WithdrawAmount,
                 ex.Message);
             return;
         }
-    }
-
-    private async Task PersistSubscriptionAsync(Subscription? currentSubscription, Subscription? updatedSubscription, CancellationToken cancellationToken)
-    {
-        if (updatedSubscription is null)
-        {
-            return;
-        }
-
-        if (currentSubscription is null)
-        {
-            await unitOfWork.Subscriptions.AddAsync(updatedSubscription, cancellationToken);
-            return;
-        }
-
-        await unitOfWork.Subscriptions.UpdateAsync(updatedSubscription, cancellationToken);
     }
 
     private async Task ApplyRenewalPaymentAsync(
@@ -123,19 +99,19 @@ public class YooMoneyNotificationService(
         DateTimeOffset receivedAtUtc,
         CancellationToken cancellationToken)
     {
-        Subscription? currentSubscription = await unitOfWork.Subscriptions.GetByUserIdAsync(user.Id, cancellationToken);
-        UserSubscriptionRenewalResult renewalResult = await userSubscriptionRenewalService.ApplyAsync(
-            user,
-            currentSubscription,
-            notification.Amount,
-            receivedAtUtc,
-            cancellationToken);
+        ProxyUser updatedUser = user with
+        {
+            BalanceRub = user.BalanceRub + notification.WithdrawAmount,
+            ManualHandlingStatus = ManualHandlingStatus.NotRequired,
+            ManualHandlingReason = null
+        };
 
         Payment payment = new(
             Guid.NewGuid(),
             paymentRequest.Id,
             user.Id,
             notification.OperationId.Trim(),
+            notification.WithdrawAmount,
             notification.Amount,
             receivedAtUtc,
             PaymentStatus.Applied);
@@ -145,8 +121,7 @@ public class YooMoneyNotificationService(
         };
 
         await unitOfWork.Payments.AddAsync(payment, cancellationToken);
-        await unitOfWork.Users.UpdateAsync(renewalResult.UpdatedUser, cancellationToken);
-        await PersistSubscriptionAsync(currentSubscription, renewalResult.UpdatedSubscription, cancellationToken);
+        await unitOfWork.Users.UpdateAsync(updatedUser, cancellationToken);
         await unitOfWork.PaymentRequests.UpdateAsync(updatedPaymentRequest, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -169,6 +144,7 @@ public class YooMoneyNotificationService(
             pendingUser.Id,
             notification.OperationId.Trim(),
             notification.WithdrawAmount,
+            notification.Amount,
             receivedAtUtc,
             PaymentStatus.Applied);
         PaymentRequest updatedPaymentRequest = paymentRequest with
@@ -211,6 +187,7 @@ public class YooMoneyNotificationService(
             user.Id,
             notification.OperationId.Trim(),
             notification.WithdrawAmount,
+            notification.Amount,
             receivedAtUtc,
             PaymentStatus.RequiresManualHandling);
         PaymentRequest updatedPaymentRequest = paymentRequest with
@@ -219,7 +196,7 @@ public class YooMoneyNotificationService(
         };
         ProxyUser updatedUser = user with
         {
-            BalanceRub = user.BalanceRub + notification.Amount,
+            BalanceRub = user.BalanceRub + notification.WithdrawAmount,
             ManualHandlingStatus = ManualHandlingStatus.Required,
             ManualHandlingReason = BuildManualHandlingReason(reason)
         };
@@ -281,9 +258,11 @@ public class YooMoneyNotificationService(
         }
     }
 
-    private void EnsureSignature(YooMoneyNotificationModel notification)
+    private async Task EnsureSignatureAsync(YooMoneyNotificationModel notification, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(yooMoneyOptions.Value.NotificationSecret))
+        YooMoneySettingsSnapshot yooMoneySettings = await yooMoneySettingsStore.GetAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(yooMoneySettings.NotificationSecret))
         {
             throw new InvalidOperationException("В конфигурации ЮMoney не задан секрет для проверки уведомлений.");
         }
@@ -296,7 +275,7 @@ public class YooMoneyNotificationService(
             notification.DateTimeRaw.Trim(),
             notification.Sender.Trim(),
             notification.CodePro.Trim(),
-            yooMoneyOptions.Value.NotificationSecret.Trim(),
+            yooMoneySettings.NotificationSecret.Trim(),
             notification.Label.Trim());
 
         byte[] hash = SHA1.HashData(Encoding.UTF8.GetBytes(signaturePayload));

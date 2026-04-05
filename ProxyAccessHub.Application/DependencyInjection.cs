@@ -29,12 +29,16 @@ public static class DependencyInjection
         services.AddSingleton<ITariffPriceResolver, TariffPriceResolver>();
         services.AddSingleton<ITariffRenewalCalculator, TariffRenewalCalculator>();
         services.AddScoped<IUserSubscriptionRenewalService, UserSubscriptionRenewalService>();
+        services.AddScoped<IUserScheduledRenewalService, UserScheduledRenewalService>();
         services.AddScoped<ITelemtUsersSyncService, TelemtUsersSyncService>();
         services.AddScoped<IUserPaymentRequestService, UserPaymentRequestService>();
         services.AddScoped<IYooMoneyNotificationService, YooMoneyNotificationService>();
         services.AddScoped<IUserRenewalLookupService, UserRenewalLookupService>();
         services.AddScoped<IUserConnectionCreationService, UserConnectionCreationService>();
+        services.AddScoped<IProxyUserAccessService, ProxyUserAccessService>();
         services.AddScoped<IAdminUserManagementService, AdminUserManagementService>();
+        services.AddScoped<IAdminPaymentManagementService, AdminPaymentManagementService>();
+        services.AddScoped<IAdminYooMoneyManagementService, AdminYooMoneyManagementService>();
         services.AddScoped<ITrialTariffTransitionService, TrialTariffTransitionService>();
         services.AddScoped<IAdminTariffManagementService, AdminTariffManagementService>();
         services.AddScoped<IAdminServerManagementService, AdminServerManagementService>();

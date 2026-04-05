@@ -1,0 +1,15 @@
+@page
+@model ProxyAccessHub.Pages.Admin.YooMoneyModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "ЮMoney";
+    string? requestVerificationToken = Antiforgery.GetAndStoreTokens(HttpContext).RequestToken;
+}
+
+<meta name="request-verification-token" content="@requestVerificationToken" />
+
+<main class="container py-4 py-lg-5">
+    <div id="adminYooMoneyPage"></div>
+</main>
+
+<script src="~/js/admin-yoomoney.js"></script>

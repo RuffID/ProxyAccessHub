@@ -56,4 +56,9 @@ public class ProxyServerEntity : IEntity<Guid>
     /// Интервал фоновой синхронизации сервера в минутах.
     /// </summary>
     public int SyncIntervalMinutes { get; set; }
+
+    /// <summary>
+    /// Дата последнего успешного суточного списания на сервере в UTC.
+    /// </summary>
+    public DateTimeOffset? LastDailyRenewalProcessedDateUtc { get; set; }
 }

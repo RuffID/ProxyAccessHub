@@ -17,7 +17,7 @@ public class UserPaymentRequestService(
     IProxyAccessHubUnitOfWork unitOfWork,
     ITariffPriceResolver tariffPriceResolver,
     IOptions<ProxyAccessHubOptions> proxyAccessHubOptions,
-    IOptions<YooMoneyOptions> yooMoneyOptions) : IUserPaymentRequestService
+    IYooMoneySettingsStore yooMoneySettingsStore) : IUserPaymentRequestService
 {
     private const string YOOMONEY_CONFIRM_URL = "https://yoomoney.ru/quickpay/confirm";
 
@@ -49,22 +49,24 @@ public class UserPaymentRequestService(
             throw new InvalidOperationException("Сумма заявки на оплату должна быть больше нуля.");
         }
 
+        YooMoneySettingsSnapshot yooMoneySettings = await yooMoneySettingsStore.GetAsync(cancellationToken);
+
         if (proxyAccessHubOptions.Value.PaymentRequestLifetimeMinutes <= 0)
         {
             throw new InvalidOperationException("Время жизни заявки на оплату должно быть больше нуля.");
         }
 
-        if (string.IsNullOrWhiteSpace(yooMoneyOptions.Value.Receiver))
+        if (string.IsNullOrWhiteSpace(yooMoneySettings.Receiver))
         {
             throw new InvalidOperationException("В конфигурации YooMoney не задан номер кошелька получателя.");
         }
 
-        if (string.IsNullOrWhiteSpace(yooMoneyOptions.Value.SuccessUrl))
+        if (string.IsNullOrWhiteSpace(yooMoneySettings.SuccessUrl))
         {
             throw new InvalidOperationException("В конфигурации YooMoney не задан URL возврата после оплаты.");
         }
 
-        if (!Uri.TryCreate(yooMoneyOptions.Value.SuccessUrl, UriKind.Absolute, out _))
+        if (!Uri.TryCreate(yooMoneySettings.SuccessUrl, UriKind.Absolute, out _))
         {
             throw new InvalidOperationException("URL возврата после оплаты должен быть абсолютным.");
         }
@@ -77,15 +79,15 @@ public class UserPaymentRequestService(
             return new YooMoneyPaymentFormModel(
                 activePaymentRequest.Id,
                 YOOMONEY_CONFIRM_URL,
-                yooMoneyOptions.Value.Receiver.Trim(),
+                yooMoneySettings.Receiver.Trim(),
                 activePaymentRequest.Label,
                 activePaymentRequest.AmountRub,
-                yooMoneyOptions.Value.SuccessUrl.Trim(),
+                yooMoneySettings.SuccessUrl.Trim(),
                 activePaymentRequest.ExpiresAtUtc);
         }
 
         Guid paymentRequestId = Guid.NewGuid();
-        string label = paymentRequestId.ToString("N");
+        string label = paymentRequestId.ToString("D");
         DateTimeOffset expiresAtUtc = createdAtUtc.AddMinutes(proxyAccessHubOptions.Value.PaymentRequestLifetimeMinutes);
 
         PaymentRequest paymentRequest = new(
@@ -103,10 +105,10 @@ public class UserPaymentRequestService(
         return new YooMoneyPaymentFormModel(
             paymentRequest.Id,
             YOOMONEY_CONFIRM_URL,
-            yooMoneyOptions.Value.Receiver.Trim(),
+            yooMoneySettings.Receiver.Trim(),
             paymentRequest.Label,
             paymentRequest.AmountRub,
-            yooMoneyOptions.Value.SuccessUrl.Trim(),
+            yooMoneySettings.SuccessUrl.Trim(),
             paymentRequest.ExpiresAtUtc);
     }
 

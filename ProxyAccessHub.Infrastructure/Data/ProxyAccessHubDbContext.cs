@@ -59,6 +59,7 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
             builder.Property(entity => entity.ApiPort).IsRequired();
             builder.Property(entity => entity.ApiBearerToken).HasMaxLength(1024).IsRequired();
             builder.Property(entity => entity.SyncIntervalMinutes).IsRequired();
+            builder.Property(entity => entity.LastDailyRenewalProcessedDateUtc);
             builder.HasIndex(entity => entity.Code).IsUnique();
         });
 
@@ -103,6 +104,7 @@ public class ProxyAccessHubDbContext(DbContextOptions<ProxyAccessHubDbContext> o
             builder.HasKey(entity => entity.Id);
             builder.Property(entity => entity.ProviderOperationId).HasMaxLength(128).IsRequired();
             builder.Property(entity => entity.AmountRub).HasPrecision(18, 2);
+            builder.Property(entity => entity.ActualAmountRub).HasPrecision(18, 2);
             builder.HasIndex(entity => entity.ProviderOperationId).IsUnique();
         });
 

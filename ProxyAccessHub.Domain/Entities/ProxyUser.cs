@@ -36,7 +36,5 @@ public record ProxyUser(
     ManualHandlingStatus ManualHandlingStatus,
     string? ManualHandlingReason,
     string? UserAdTag,
-    int? MaxTcpConnections,
-    int? MaxUniqueIps,
     string TelemtRevision,
     DateTimeOffset LastSyncedAtUtc);

@@ -6,7 +6,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProxyAccessHub.Application.Abstractions.Storage;
 using ProxyAccessHub.Application.Abstractions.Telemt;
+using ProxyAccessHub.Application.Abstractions.Payments;
 using ProxyAccessHub.Infrastructure.Data;
+using ProxyAccessHub.Infrastructure.Payments;
 using ProxyAccessHub.Infrastructure.Storage.SqlServer;
 using ProxyAccessHub.Infrastructure.Telemt;
 using ProxyAccessHub.Infrastructure.Users;
@@ -39,6 +41,8 @@ public static class DependencyInjection
 
         services.AddHttpClient();
         services.AddScoped<ITelemtApiClient, TelemtApiClient>();
+        services.AddScoped<IYooMoneyWalletClient, YooMoneyWalletClient>();
+        services.AddSingleton<IYooMoneySettingsStore, YooMoneySettingsStore>();
         services.AddSingleton<ITelemtSyncStateStore, TelemtSyncStateStore>();
 
         services.AddScoped<IProxyUserRepository, ProxyUserRepository>();
@@ -52,6 +56,7 @@ public static class DependencyInjection
 
         services.AddHostedService<TelemtUsersSyncBackgroundService>();
         services.AddHostedService<TrialTariffTransitionBackgroundService>();
+        services.AddHostedService<ScheduledRenewalBackgroundService>();
 
         return services;
     }

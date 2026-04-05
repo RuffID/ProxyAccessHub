@@ -57,56 +57,23 @@ public class ProxyUserEntity : IEntity<Guid>
     /// Дата оплаченного доступа в UTC.
     /// </summary>
     public DateTimeOffset? AccessPaidToUtc { get; set; }
-    /// <summary>
-    /// РџСЂРёР·РЅР°Рє С‚РµРєСѓС‰РµР№ Р°РєС‚РёРІРЅРѕСЃС‚Рё РґРѕСЃС‚СѓРїР° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ telemt.
-    /// </summary>
-    public bool IsTelemtAccessActive { get; set; }
 
     /// <summary>
-    /// Признак безлимитного доступа пользователя.
+    /// Признак текущей активности доступа пользователя в telemt.
     /// </summary>
-    public bool IsUnlimited { get; set; }
+    public bool IsTelemtAccessActive { get; set; }
 
     /// <summary>
     /// Статус ручной обработки.
     /// </summary>
     public ManualHandlingStatus ManualHandlingStatus { get; set; }
+
     public string? ManualHandlingReason { get; set; }
 
     /// <summary>
     /// Служебный тег пользователя в telemt.
     /// </summary>
     public string? UserAdTag { get; set; }
-
-    /// <summary>
-    /// Лимит TCP-подключений пользователя.
-    /// </summary>
-    public int? MaxTcpConnections { get; set; }
-
-    /// <summary>
-    /// Лимит трафика пользователя в байтах.
-    /// </summary>
-    public long? DataQuotaBytes { get; set; }
-
-    /// <summary>
-    /// Лимит уникальных IP пользователя.
-    /// </summary>
-    public int? MaxUniqueIps { get; set; }
-
-    /// <summary>
-    /// Текущее количество подключений пользователя.
-    /// </summary>
-    public int CurrentConnections { get; set; }
-
-    /// <summary>
-    /// Текущее количество активных уникальных IP.
-    /// </summary>
-    public int ActiveUniqueIps { get; set; }
-
-    /// <summary>
-    /// Накопленный объём трафика пользователя в октетах.
-    /// </summary>
-    public long TotalOctets { get; set; }
 
     /// <summary>
     /// Ревизия telemt на момент последней синхронизации.

@@ -1,10 +1,11 @@
 using ProxyAccessHub.Core;
 using ProxyAccessHub.Infrastructure.Data;
+using ProxyAccessHub.Infrastructure.Configuration;
 using ProxyAccessHub.Infrastructure.Service.DataBase;
 using Serilog;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-string configPath = Path.Combine(AppContext.BaseDirectory, "Config", "config.json");
+string configPath = ConfigPathResolver.Resolve(builder.Environment.EnvironmentName, builder.Environment.ContentRootPath);
 
 builder.Configuration.AddJsonFile(configPath, optional: false, reloadOnChange: false);
 

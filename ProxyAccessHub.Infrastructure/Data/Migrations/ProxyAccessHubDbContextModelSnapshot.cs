@@ -28,6 +28,10 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal?>("ActualAmountRub")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("AmountRub")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -119,6 +123,9 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<DateTimeOffset?>("LastDailyRenewalProcessedDateUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<int>("MaxUsers")
                         .HasColumnType("int");
 
@@ -150,31 +157,19 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset?>("AccessPaidToUtc")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<int>("ActiveUniqueIps")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("BalanceRub")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("CurrentConnections")
-                        .HasColumnType("int");
-
                     b.Property<decimal?>("CustomPeriodPriceRub")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<long?>("DataQuotaBytes")
-                        .HasColumnType("bigint");
 
                     b.Property<decimal?>("DiscountPercent")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
                     b.Property<bool>("IsTelemtAccessActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsUnlimited")
                         .HasColumnType("bit");
 
                     b.Property<DateTimeOffset>("LastSyncedAtUtc")
@@ -185,12 +180,6 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(1024)");
 
                     b.Property<int>("ManualHandlingStatus")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MaxTcpConnections")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MaxUniqueIps")
                         .HasColumnType("int");
 
                     b.Property<string>("ProxyLink")
@@ -218,9 +207,6 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
-
-                    b.Property<long>("TotalOctets")
-                        .HasColumnType("bigint");
 
                     b.Property<string>("UserAdTag")
                         .HasMaxLength(64)
@@ -341,9 +327,9 @@ namespace ProxyAccessHub.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsTrial", "EndedAtUtc");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("IsTrial", "EndedAtUtc");
 
                     b.HasIndex("UserId", "EndedAtUtc")
                         .IsUnique()

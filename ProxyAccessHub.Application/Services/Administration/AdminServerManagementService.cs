@@ -53,7 +53,8 @@ public class AdminServerManagementService(
             maxUsers,
             isActive,
             syncEnabled,
-            syncIntervalMinutes);
+            syncIntervalMinutes,
+            null);
 
         await unitOfWork.Servers.AddAsync(server, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);

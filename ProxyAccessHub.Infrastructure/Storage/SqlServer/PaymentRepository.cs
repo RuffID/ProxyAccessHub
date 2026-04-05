@@ -1,3 +1,4 @@
+using EFCoreLibrary.Abstractions.Database;
 using EFCoreLibrary.Abstractions.Database.Repository.Base;
 using Microsoft.EntityFrameworkCore;
 using ProxyAccessHub.Application.Abstractions.Storage;
@@ -11,6 +12,7 @@ namespace ProxyAccessHub.Infrastructure.Storage.SqlServer;
 /// Репозиторий входящих платежей на базе SQL Server.
 /// </summary>
 public class PaymentRepository(
+    IAppDbContext<ProxyAccessHubDbContext> dbContext,
     IGetItemByIdRepository<PaymentEntity, Guid, ProxyAccessHubDbContext> getByIdRepository,
     IGetItemByPredicateRepository<PaymentEntity, ProxyAccessHubDbContext> getByPredicateRepository,
     IQueryRepository<PaymentEntity, ProxyAccessHubDbContext> queryRepository,
@@ -22,6 +24,16 @@ public class PaymentRepository(
         PaymentEntity? entity = await getByIdRepository.GetItemByIdAsync(id, asNoTracking: true, ct: cancellationToken);
 
         return entity is null ? null : Map(entity);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Payment>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        List<PaymentEntity> entities = await queryRepository.Query(asNoTracking: true)
+            .OrderByDescending(payment => payment.ReceivedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(Map).ToArray();
     }
 
     /// <inheritdoc />
@@ -38,6 +50,17 @@ public class PaymentRepository(
             ct: cancellationToken);
 
         return entity is null ? null : Map(entity);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Payment>> GetByPaymentRequestIdAsync(Guid paymentRequestId, CancellationToken cancellationToken = default)
+    {
+        List<PaymentEntity> entities = await queryRepository.Query(asNoTracking: true)
+            .Where(payment => payment.PaymentRequestId == paymentRequestId)
+            .OrderByDescending(payment => payment.ReceivedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(Map).ToArray();
     }
 
     /// <inheritdoc />
@@ -60,6 +83,15 @@ public class PaymentRepository(
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
+    public Task UpdateAsync(Payment payment, CancellationToken cancellationToken = default)
+    {
+        ValidatePayment(payment);
+        cancellationToken.ThrowIfCancellationRequested();
+        dbContext.Set<PaymentEntity>().Update(Map(payment));
+        return Task.CompletedTask;
+    }
+
     private static PaymentEntity Map(Payment payment)
     {
         return new PaymentEntity
@@ -69,6 +101,7 @@ public class PaymentRepository(
             UserId = payment.UserId,
             ProviderOperationId = payment.ProviderOperationId,
             AmountRub = payment.AmountRub,
+            ActualAmountRub = payment.ActualAmountRub,
             ReceivedAtUtc = payment.ReceivedAtUtc,
             Status = payment.Status
         };
@@ -82,6 +115,7 @@ public class PaymentRepository(
             entity.UserId,
             entity.ProviderOperationId,
             entity.AmountRub,
+            entity.ActualAmountRub,
             entity.ReceivedAtUtc,
             entity.Status);
     }
@@ -96,6 +130,11 @@ public class PaymentRepository(
         if (payment.AmountRub <= 0m)
         {
             throw new InvalidOperationException("Сумма платежа должна быть больше нуля.");
+        }
+
+        if (payment.ActualAmountRub is <= 0m)
+        {
+            throw new InvalidOperationException("Фактическая сумма платежа должна быть больше нуля.");
         }
     }
 }

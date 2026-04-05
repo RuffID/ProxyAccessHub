@@ -4,7 +4,7 @@ using ProxyAccessHub.Domain.Entities;
 namespace ProxyAccessHub.Application.Abstractions.Telemt;
 
 /// <summary>
-/// Клиент чтения данных из telemt API.
+/// Клиент чтения и обновления данных через telemt API.
 /// </summary>
 public interface ITelemtApiClient
 {
@@ -28,5 +28,18 @@ public interface ITelemtApiClient
         DateTimeOffset expirationUtc,
         int maxTcpConnections,
         int maxUniqueIps,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Обновляет срок действия доступа пользователя в telemt.
+    /// </summary>
+    /// <param name="server">Сервер пользователя.</param>
+    /// <param name="username">Идентификатор пользователя в telemt.</param>
+    /// <param name="expirationUtc">Новый срок действия доступа в UTC.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    Task UpdateUserExpirationAsync(
+        ProxyServer server,
+        string username,
+        DateTimeOffset expirationUtc,
         CancellationToken cancellationToken = default);
 }
